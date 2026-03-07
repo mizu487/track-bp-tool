@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music BP Tool - PeerJS</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #111;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .hidden { display: none !important; }
+    .page {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+    h1, h2, h3, p { margin-top: 0; }
+    .card {
+      background: #1c1c1c;
+      border: 1px solid #2b2b2b;
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    .stack { display: grid; gap: 16px; }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 960px) {
+      .row { grid-template-columns: 1fr; }
+      .status-grid { grid-template-columns: 1fr !important; }
+      .song-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)) !important; }
+      .room-actions { flex-direction: column; }
+    }
+    input, button, select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #3a3a3a;
+      background: #141414;
+      color: #fff;
+      font-size: 15px;
+    }
+    button {
+      cursor: pointer;
+      background: #06d6a0;
+      color: #111;
+      font-weight: 700;
+      border: none;
+    }
+    button:hover { opacity: 0.92; }
+    button.secondary { background: #2c2c2c; color: #fff; border: 1px solid #3a3a3a; }
+    button.warn { background: #f4a261; color: #111; }
+    button.danger { background: #e63946; color: #fff; }
+    button:disabled { cursor: not-allowed; opacity: 0.5; }
+    .muted { color: #bdbdbd; }
+    .small { font-size: 13px; }
+    .page-title { font-size: 32px; margin-bottom: 8px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #232323;
+      color: #d9d9d9;
+      font-size: 13px;
+      margin: 0 8px 8px 0;
+    }
+    .banner {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #1d3557;
+      color: #eaf4ff;
+      border: 1px solid #2f4d78;
+    }
+    .success-banner {
+      background: #183a2b;
+      border-color: #2a6b4d;
+      color: #dcffe8;
+    }
+    .error-banner {
+      background: #4a1f24;
+      border-color: #7a2d35;
+      color: #ffe1e4;
+    }
+    .copy-box {
+      background: #151515;
+      border: 1px dashed #474747;
+      border-radius: 10px;
+      padding: 12px;
+      word-break: break-all;
+      font-family: Consolas, monospace;
+      font-size: 14px;
+    }
+    .seat-card h3 { margin-bottom: 8px; }
+    .seat-status { margin-bottom: 12px; color: #ccc; min-height: 22px; }
+    .topbar {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .topbar-main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stage-box {
+      background: #1f1f1f;
+      border: 1px solid #353535;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    #stageText {
+      font-size: 24px;
+      color: #ffd166;
+      font-weight: 700;
+    }
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    .status-title {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #ffd166;
+    }
+    .mini-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 64px;
+    }
+    .mini-item {
+      width: 70px;
+      text-align: center;
+      font-size: 12px;
+      color: #ddd;
+    }
+    .mini-item img {
+      width: 70px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .song-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(160px, 1fr));
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .song {
+      background: #222;
+      padding: 10px;
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.18s ease, opacity 0.18s ease;
+      border: 1px solid #2d2d2d;
+    }
+    .song:hover { transform: scale(1.02); }
+    .song img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 10px;
+      display: block;
+    }
+    .song-title {
+      margin-top: 10px;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .song-diff {
+      color: #aaa;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+    .song.disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+    .song.locked {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .ban-mark, .pick-mark {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 28px;
+    }
+    .ban-mark {
+      background: rgba(220,53,69,0.95);
+      box-shadow: 0 0 10px rgba(220,53,69,0.7);
+    }
+    .pick-mark {
+      background: rgba(40,167,69,0.98);
+      box-shadow: 0 0 12px rgba(40,167,69,0.8);
+      border: 2px solid white;
+      font-size: 26px;
+    }
+    .bottom-actions, .room-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page" id="lobbyPage">
+    <h1 class="page-title">Music BP Tool</h1>
+    <p class="muted">无需 Firebase 的简易联机版。房主创建房间时自动选择组别，玩家 B 和观众通过房间号加入。房主关闭页面后，房间会失效。</p>
+
+    <div class="banner">这是浏览器点对点版本。首次连接时，需要通过一个公共信令服务完成握手；后续状态数据在浏览器之间同步。若公共信令服务临时不可用，房间创建或加入可能失败。</div>
+
+    <div class="stack" style="margin-top:16px;">
+      <div class="card">
+        <h2>创建房间（玩家 A）</h2>
+        <div class="stack">
+          <div>
+            <label>组别</label>
+            <select id="presetSelect">
+              <option value="groupA">A组（10 首占位）</option>
+              <option value="groupB">B组（10 首占位）</option>
+              <option value="groupC">C组（10 首占位）</option>
+            </select>
+          </div>
+          <button id="createRoomBtn">创建房间并作为玩家 A 进入</button>
+          <div id="createMessage" class="hidden"></div>
+          <div id="roomInfoBox" class="hidden"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>加入房间</h2>
+        <div class="stack">
+          <div>
+            <label>房间号</label>
+            <input id="roomIdInput" placeholder="输入房主给你的房间号" />
+          </div>
+          <div>
+            <label>身份</label>
+            <select id="joinRoleSelect">
+              <option value="B">玩家 B</option>
+              <option value="spectator">观战</option>
+            </select>
+          </div>
+          <button id="joinRoomBtn">加入房间</button>
+          <div id="joinMessage" class="hidden"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page hidden" id="roomPage">
+    <div class="topbar">
+      <div class="topbar-main">
+        <div>
+          <div class="pill">房间号：<b id="roomIdText"></b></div>
+          <div class="pill">我的身份：<b id="roleText"></b></div>
+          <div class="pill">当前组别：<b id="presetText"></b></div>
+          <div class="pill">连接状态：<b id="connectionText">连接中</b></div>
+        </div>
+        <div class="room-actions">
+          <button class="secondary" id="backToLobbyBtn" style="width:auto;">返回首页</button>
+          <button class="danger" id="leaveRoomBtn" style="width:auto;">离开房间</button>
+          <button class="warn hidden" id="resetBtn" style="width:auto;">重置本局 BP</button>
+        </div>
+      </div>
+
+      <div id="roomMessage" class="hidden"></div>
+
+      <div class="stage-box">
+        <div id="stageText">当前阶段：玩家A 全局Ban</div>
+        <div class="small muted" id="stageTip" style="margin-top:8px;">只有轮到的玩家可以操作；观众只能观看。</div>
+      </div>
+    </div>
+
+    <div class="status-grid">
+      <div class="card">
+        <div class="status-title">已 Ban</div>
+        <div class="mini-list" id="banList"></div>
+      </div>
+      <div class="card">
+        <div class="status-title">玩家 A Pick</div>
+        <div class="mini-list" id="pickAList"></div>
+      </div>
+      <div class="card">
+        <div class="status-title">玩家 B Pick</div>
+        <div class="mini-list" id="pickBList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:0;">歌曲池</h3>
+      <div class="song-grid" id="songGrid"></div>
+      <div class="bottom-actions">
+        <button id="confirmBtn" style="width:auto;">确认当前阶段</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+  <script>
+    const stages = [
+      "玩家A 全局Ban",
+      "玩家B 全局Ban",
+      "玩家A Ban",
+      "玩家B Ban",
+      "玩家A Pick",
+      "玩家B Pick",
+      "BP结束"
+    ];
+
+    const coverPath = "covers/axeria.jpg";
+    const SPECTATOR_LIMIT = 3;
+
+    const lobbyPage = document.getElementById("lobbyPage");
+    const roomPage = document.getElementById("roomPage");
+    const presetSelect = document.getElementById("presetSelect");
+    const createRoomBtn = document.getElementById("createRoomBtn");
+    const joinRoomBtn = document.getElementById("joinRoomBtn");
+    const roomIdInput = document.getElementById("roomIdInput");
+    const joinRoleSelect = document.getElementById("joinRoleSelect");
+    const createMessage = document.getElementById("createMessage");
+    const joinMessage = document.getElementById("joinMessage");
+    const roomInfoBox = document.getElementById("roomInfoBox");
+
+    const roomIdText = document.getElementById("roomIdText");
+    const roleText = document.getElementById("roleText");
+    const presetText = document.getElementById("presetText");
+    const connectionText = document.getElementById("connectionText");
+    const roomMessage = document.getElementById("roomMessage");
+    const stageText = document.getElementById("stageText");
+    const stageTip = document.getElementById("stageTip");
+    const banList = document.getElementById("banList");
+    const pickAList = document.getElementById("pickAList");
+    const pickBList = document.getElementById("pickBList");
+    const songGrid = document.getElementById("songGrid");
+    const confirmBtn = document.getElementById("confirmBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const leaveRoomBtn = document.getElementById("leaveRoomBtn");
+    const backToLobbyBtn = document.getElementById("backToLobbyBtn");
+
+    let peer = null;
+    let roomPeerId = "";
+    let myRole = "";
+    let isHost = false;
+    let roomState = null;
+    let hostConnections = [];
+    let hostConn = null;
+
+    function buildPreset(prefix) {
+      return [
+        { title: `${prefix} Song 1`, difficulty: "Master 12", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 2`, difficulty: "Master 13", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 3`, difficulty: "Master 14", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 4`, difficulty: "Expert 12", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 5`, difficulty: "Expert 13", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 6`, difficulty: "Master 13", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 7`, difficulty: "Master 14", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 8`, difficulty: "Expert 12", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 9`, difficulty: "Master 13", cover: coverPath, status: "available", stageMarked: null, ownerRole: null },
+        { title: `${prefix} Song 10`, difficulty: "Master 14", cover: coverPath, status: "available", stageMarked: null, ownerRole: null }
+      ];
+    }
+
+    const presets = {
+      groupA: buildPreset("A组"),
+      groupB: buildPreset("B组"),
+      groupC: buildPreset("C组")
+    };
+
+    const presetNameMap = {
+      groupA: "A组",
+      groupB: "B组",
+      groupC: "C组"
+    };
+
+    function cloneData(data) {
+      return JSON.parse(JSON.stringify(data));
+    }
+
+    function createInitialState(presetKey) {
+      return {
+        presetKey,
+        currentStage: 0,
+        ended: false,
+        seats: {
+          A: true,
+          B: false
+        },
+        spectatorCount: 0,
+        songs: cloneData(presets[presetKey])
+      };
+    }
+
+function generateRoomId() {
+  return String(Math.floor(Math.random() * 900) + 100);
+}
+
+    function showMessage(el, text, type = "banner") {
+      el.classList.remove("hidden", "banner", "success-banner", "error-banner");
+      el.classList.add(type);
+      el.textContent = text;
+    }
+
+    function clearMessage(el) {
+      el.className = "hidden";
+      el.textContent = "";
+    }
+
+    function getCurrentActor(stageIndex) {
+      if (stageIndex === 0 || stageIndex === 2 || stageIndex === 4) return "A";
+      if (stageIndex === 1 || stageIndex === 3 || stageIndex === 5) return "B";
+      return "none";
+    }
+
+    function isBanStage(stageIndex) {
+      return stageIndex >= 0 && stageIndex <= 3;
+    }
+
+    function isPickStage(stageIndex) {
+      return stageIndex === 4 || stageIndex === 5;
+    }
+
+    function isMyTurn() {
+      if (!roomState) return false;
+      return myRole === getCurrentActor(roomState.currentStage);
+    }
+
+    function updateConnectionText(text) {
+      connectionText.textContent = text;
+    }
+
+    function setupPeerCommonEvents() {
+      peer.on("error", (err) => {
+        showMessage(roomMessage, `连接错误：${err.type || err.message || err}`, "error-banner");
+        updateConnectionText("连接异常");
+      });
+    }
+
+    function createHostPeer() {
+      roomPeerId = generateRoomId();
+      peer = new Peer(roomPeerId);
+      isHost = true;
+      myRole = "A";
+      roomState = createInitialState(presetSelect.value);
+      setupPeerCommonEvents();
+
+      peer.on("open", () => {
+        showRoom();
+        updateConnectionText("房主在线");
+        showMessage(createMessage, "房间创建成功。把房间号发给其他人即可。", "success-banner");
+        roomInfoBox.classList.remove("hidden");
+        roomInfoBox.className = "copy-box";
+        roomInfoBox.innerHTML = `房间号：${roomPeerId}`;
+        renderRoom();
+      });
+
+      peer.on("connection", (conn) => {
+        conn.on("open", () => {
+          hostConnections.push(conn);
+          conn.send({ type: "welcome", role: "pending", state: roomState });
+        });
+
+        conn.on("data", (data) => handleHostData(conn, data));
+        conn.on("close", () => {
+          hostConnections = hostConnections.filter(item => item !== conn);
+          if (conn._clientRole === "B") {
+            roomState.seats.B = false;
+          }
+          if (conn._clientRole === "spectator") {
+            roomState.spectatorCount = Math.max(0, roomState.spectatorCount - 1);
+          }
+          broadcastState();
+          renderRoom();
+        });
+      });
+    }
+
+    function handleHostData(conn, data) {
+      if (!data || !data.type) return;
+
+      if (data.type === "request-join") {
+        const role = data.role;
+        if (role === "B") {
+          if (roomState.seats.B) {
+            conn.send({ type: "join-denied", message: "玩家 B 已被占用。" });
+            return;
+          }
+          roomState.seats.B = true;
+          conn._clientRole = "B";
+          conn.send({ type: "join-approved", role: "B", state: roomState });
+          broadcastState();
+          renderRoom();
+          return;
+        }
+
+        if (role === "spectator") {
+          if (roomState.spectatorCount >= SPECTATOR_LIMIT) {
+            conn.send({ type: "join-denied", message: "观战席已满。" });
+            return;
+          }
+          roomState.spectatorCount += 1;
+          conn._clientRole = "spectator";
+          conn.send({ type: "join-approved", role: "spectator", state: roomState });
+          broadcastState();
+          renderRoom();
+        }
+        return;
+      }
+
+      if (data.type === "state-update") {
+        roomState = data.state;
+        broadcastState();
+        renderRoom();
+        return;
+      }
+
+      if (data.type === "leave-room") {
+        if (conn._clientRole === "B") {
+          roomState.seats.B = false;
+        }
+        if (conn._clientRole === "spectator") {
+          roomState.spectatorCount = Math.max(0, roomState.spectatorCount - 1);
+        }
+        broadcastState();
+        renderRoom();
+      }
+    }
+
+    function joinHostPeer() {
+      const targetId = roomIdInput.value.trim().toUpperCase();
+      if (!targetId) {
+        showMessage(joinMessage, "请先输入房间号。", "error-banner");
+        return;
+      }
+      roomPeerId = targetId;
+      isHost = false;
+      myRole = "";
+      peer = new Peer();
+      setupPeerCommonEvents();
+
+      peer.on("open", () => {
+        hostConn = peer.connect(roomPeerId, { reliable: true });
+        hostConn.on("open", () => {
+          updateConnectionText("已连接房主");
+          hostConn.send({ type: "request-join", role: joinRoleSelect.value });
+        });
+        hostConn.on("data", handleClientData);
+        hostConn.on("close", () => {
+          updateConnectionText("房主已离线");
+          showMessage(roomMessage, "房主已离线，房间已失效。请让玩家 A 重新创建房间。", "error-banner");
+          confirmBtn.disabled = true;
+        });
+      });
+    }
+
+    function handleClientData(data) {
+      if (!data || !data.type) return;
+      if (data.type === "join-denied") {
+        showMessage(joinMessage, data.message || "加入失败。", "error-banner");
+        return;
+      }
+      if (data.type === "join-approved") {
+        myRole = data.role;
+        roomState = data.state;
+        clearMessage(joinMessage);
+        showRoom();
+        renderRoom();
+        return;
+      }
+      if (data.type === "welcome") {
+        return;
+      }
+      if (data.type === "state-sync") {
+        roomState = data.state;
+        renderRoom();
+      }
+    }
+
+    function broadcastState() {
+      if (!isHost) return;
+      hostConnections.forEach(conn => {
+        if (conn.open) {
+          conn.send({ type: "state-sync", state: roomState });
+        }
+      });
+    }
+
+    function showRoom() {
+      lobbyPage.classList.add("hidden");
+      roomPage.classList.remove("hidden");
+      roomIdText.textContent = roomPeerId;
+      roleText.textContent = myRole === "spectator" ? "观战" : `玩家 ${myRole}`;
+      presetText.textContent = presetNameMap[roomState.presetKey] || roomState.presetKey;
+      clearMessage(roomMessage);
+    }
+
+    function sendStateFromClient() {
+      if (isHost) {
+        broadcastState();
+        renderRoom();
+      } else if (hostConn && hostConn.open) {
+        hostConn.send({ type: "state-update", state: roomState });
+      }
+    }
+
+    function renderMiniList(container, songs) {
+      container.innerHTML = "";
+      if (!songs.length) {
+        container.innerHTML = '<div class="muted small">暂无</div>';
+        return;
+      }
+      songs.forEach(song => {
+        const div = document.createElement("div");
+        div.className = "mini-item";
+        div.innerHTML = `
+          <img src="${song.cover}" alt="${song.title}">
+          <div>${song.title}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function canInteractWithSong(song) {
+      if (!roomState) return false;
+      if (myRole === "spectator") return false;
+      if (!isMyTurn()) return false;
+      const stage = roomState.currentStage;
+      if (stage >= stages.length - 1) return false;
+
+      if (isBanStage(stage)) {
+        if (song.status === "available") return true;
+        return song.status === "banned" && song.stageMarked === stage && song.ownerRole === myRole;
+      }
+
+      if (isPickStage(stage)) {
+        if (song.status === "banned") return false;
+        if (song.status === "available") return true;
+        return song.status === "picked" && song.stageMarked === stage && song.ownerRole === myRole;
+      }
+
+      return false;
+    }
+
+    function renderRoom() {
+      if (!roomState) return;
+      roleText.textContent = myRole === "spectator" ? "观战" : `玩家 ${myRole}`;
+      presetText.textContent = presetNameMap[roomState.presetKey] || roomState.presetKey;
+      stageText.textContent = `当前阶段：${stages[roomState.currentStage]}`;
+      const actor = getCurrentActor(roomState.currentStage);
+      const ended = roomState.ended || roomState.currentStage >= stages.length - 1;
+
+      stageTip.textContent = myRole === "spectator"
+        ? `你当前是观战席。观战人数：${roomState.spectatorCount}/${SPECTATOR_LIMIT}`
+        : ended
+          ? "BP 已结束，可点击重置本局 BP。"
+          : isMyTurn()
+            ? "现在轮到你操作。"
+            : `现在轮到玩家 ${actor} 操作，你当前不能点击歌曲。`;
+
+      confirmBtn.disabled = !isMyTurn() || ended;
+      confirmBtn.textContent = ended ? "BP已结束" : "确认当前阶段";
+      resetBtn.classList.toggle("hidden", !(ended && myRole !== "spectator"));
+
+      renderMiniList(banList, roomState.songs.filter(song => song.status === "banned"));
+      renderMiniList(pickAList, roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "A"));
+      renderMiniList(pickBList, roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "B"));
+
+      songGrid.innerHTML = "";
+      roomState.songs.forEach((song, index) => {
+        const div = document.createElement("div");
+        div.className = "song";
+        const clickable = canInteractWithSong(song);
+        if (!clickable) {
+          if ((isPickStage(roomState.currentStage) && song.status === "banned") || myRole === "spectator" || !isMyTurn()) div.classList.add("disabled");
+          else div.classList.add("locked");
+        }
+
+        let markHtml = "";
+        if (song.status === "banned") markHtml = '<div class="ban-mark">✕</div>';
+        else if (song.status === "picked") markHtml = '<div class="pick-mark">✓</div>';
+
+        div.innerHTML = `
+          <img src="${song.cover}" alt="${song.title}">
+          <div class="song-title">${song.title}</div>
+          <div class="song-diff">${song.difficulty}</div>
+          ${markHtml}
+        `;
+
+        div.onclick = () => {
+          if (!clickable) return;
+          handleSongClick(index);
+        };
+
+        songGrid.appendChild(div);
+      });
+    }
+
+    function handleSongClick(index) {
+      const stage = roomState.currentStage;
+      const song = roomState.songs[index];
+
+      if (isBanStage(stage)) {
+        if (song.status === "available") {
+          song.status = "banned";
+          song.stageMarked = stage;
+          song.ownerRole = myRole;
+        } else if (song.status === "banned" && song.stageMarked === stage && song.ownerRole === myRole) {
+          song.status = "available";
+          song.stageMarked = null;
+          song.ownerRole = null;
+        } else {
+          return;
+        }
+      } else if (isPickStage(stage)) {
+        if (song.status === "banned") return;
+        if (song.status === "available") {
+          roomState.songs.forEach(item => {
+            if (item.status === "picked" && item.stageMarked === stage && item.ownerRole === myRole) {
+              item.status = "available";
+              item.stageMarked = null;
+              item.ownerRole = null;
+            }
+          });
+          song.status = "picked";
+          song.stageMarked = stage;
+          song.ownerRole = myRole;
+        } else if (song.status === "picked" && song.stageMarked === stage && song.ownerRole === myRole) {
+          song.status = "available";
+          song.stageMarked = null;
+          song.ownerRole = null;
+        } else {
+          return;
+        }
+      }
+
+      sendStateFromClient();
+    }
+
+    function validateBeforeConfirm() {
+      if (isPickStage(roomState.currentStage)) {
+        const hasPick = roomState.songs.some(song => song.status === "picked" && song.stageMarked === roomState.currentStage && song.ownerRole === myRole);
+        if (!hasPick) {
+          alert("当前是 Pick 阶段，必须先选 1 首歌才能确认。\n\n如果你想换歌，直接点另一首即可自动替换。");
+          return false;
+        }
+      }
+      return true;
+    }
+
+    function confirmStage() {
+      if (!roomState || !isMyTurn()) return;
+      if (!validateBeforeConfirm()) return;
+      roomState.currentStage = Math.min(roomState.currentStage + 1, stages.length - 1);
+      roomState.ended = roomState.currentStage >= stages.length - 1;
+      sendStateFromClient();
+    }
+
+    function resetMatch() {
+      if (!roomState || myRole === "spectator") return;
+      const ok = confirm("确定要重置本局 BP 吗？\n\n这会保留房间与座位，只重置阶段和歌曲状态。");
+      if (!ok) return;
+      const presetKey = roomState.presetKey;
+      roomState = createInitialState(presetKey);
+      roomState.seats.B = true;
+      roomState.spectatorCount = Math.min(roomState.spectatorCount, SPECTATOR_LIMIT);
+      sendStateFromClient();
+    }
+
+    function leaveRoom() {
+      if (!confirm("确定要离开房间吗？")) return;
+      if (!isHost && hostConn && hostConn.open) {
+        hostConn.send({ type: "leave-room" });
+        hostConn.close();
+      }
+      if (isHost) {
+        hostConnections.forEach(conn => {
+          try { conn.close(); } catch (e) {}
+        });
+        try { peer.destroy(); } catch (e) {}
+      } else if (peer) {
+        try { peer.destroy(); } catch (e) {}
+      }
+      peer = null;
+      hostConnections = [];
+      hostConn = null;
+      roomPeerId = "";
+      myRole = "";
+      isHost = false;
+      roomState = null;
+      roomPage.classList.add("hidden");
+      lobbyPage.classList.remove("hidden");
+      clearMessage(roomMessage);
+      updateConnectionText("未连接");
+    }
+
+    createRoomBtn.onclick = () => {
+      clearMessage(createMessage);
+      clearMessage(joinMessage);
+      roomInfoBox.classList.add("hidden");
+      createHostPeer();
+    };
+
+    joinRoomBtn.onclick = () => {
+      clearMessage(joinMessage);
+      clearMessage(createMessage);
+      joinHostPeer();
+    };
+
+    confirmBtn.onclick = confirmStage;
+    resetBtn.onclick = resetMatch;
+    leaveRoomBtn.onclick = leaveRoom;
+    backToLobbyBtn.onclick = () => {
+      roomPage.classList.add("hidden");
+      lobbyPage.classList.remove("hidden");
+    };
+  </script>
+</body>
+</html>
