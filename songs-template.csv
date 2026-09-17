@@ -1,0 +1,4 @@
+song_id,title,groups,pools,difficulty,level,cover
+001,示例自选曲,A|B,self,Master,13+,001.jpg
+002,示例共用曲,A|B|C,self|random,Re:Master,14,002.jpg
+003,示例随机曲,A,random,Expert,12+,003.jpg

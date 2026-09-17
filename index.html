@@ -3,34 +3,99 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Music BP Tool - Referee Room</title>
+  <title>选手加入房间 - Music BP Tool</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <script src="referee-auth.js"></script>
+  <script>
+    (() => {
+      const portal = new URLSearchParams(window.location.search).get("portal") === "referee" ? "referee" : "player";
+      document.documentElement.dataset.bpPortal = portal;
+      document.title = portal === "referee"
+        ? "BP 房间控制 - Music BP Tool"
+        : "选手加入房间 - Music BP Tool";
+      window.BP_PORTAL_MODE = portal;
+    })();
+  </script>
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; font-family: Arial, "Microsoft YaHei", sans-serif; background: #111; color: #fff; min-height: 100vh; }
     .hidden { display: none !important; }
-    .page { max-width: 1240px; margin: 0 auto; padding: 24px 16px 40px; }
+    html[data-bp-portal="player"] .referee-only { display: none !important; }
+    html[data-bp-portal="referee"] .participant-only { display: none !important; }
+    .page { max-width: 1320px; margin: 0 auto; padding: 24px 16px 40px; }
     h1, h2, h3, p { margin-top: 0; }
     .card { background: #1c1c1c; border: 1px solid #2b2b2b; border-radius: 16px; padding: 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
     .stack { display: grid; gap: 16px; }
     .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .pair-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     @media (max-width: 960px) {
       .row { grid-template-columns: 1fr; }
       .status-grid { grid-template-columns: 1fr !important; }
       .song-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)) !important; }
       .room-actions { flex-direction: column; }
+      .pair-grid { grid-template-columns: 1fr; }
     }
-    input, button, select { width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid #3a3a3a; background: #141414; color: #fff; font-size: 15px; }
-    button { cursor: pointer; background: #06d6a0; color: #111; font-weight: 700; border: none; }
+
+    input, button, select {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid #3a3a3a;
+      background: #141414;
+      color: #fff;
+      font-size: 15px;
+    }
+
+    button {
+      cursor: pointer;
+      background: #06d6a0;
+      color: #111;
+      font-weight: 700;
+      border: none;
+    }
+
     button:hover { opacity: 0.92; }
     button.secondary { background: #2c2c2c; color: #fff; border: 1px solid #3a3a3a; }
     button.warn { background: #f4a261; color: #111; }
     button.danger { background: #e63946; color: #fff; }
     button:disabled { cursor: not-allowed; opacity: 0.5; }
+    .button-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: #2c2c2c;
+      color: #fff;
+      border: 1px solid #3a3a3a;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
     .muted { color: #bdbdbd; }
     .small { font-size: 13px; }
     .page-title { font-size: 32px; margin-bottom: 8px; }
-    .pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 8px 12px; background: #232323; color: #d9d9d9; font-size: 13px; margin: 0 8px 8px 0; }
-    .banner { padding: 12px 14px; border-radius: 12px; background: #1d3557; color: #eaf4ff; border: 1px solid #2f4d78; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      background: #232323;
+      color: #d9d9d9;
+      font-size: 13px;
+      margin: 0 8px 8px 0;
+    }
+
+    .banner {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #1d3557;
+      color: #eaf4ff;
+      border: 1px solid #2f4d78;
+    }
+
     .success-banner { background: #183a2b; border-color: #2a6b4d; color: #dcffe8; }
     .error-banner { background: #4a1f24; border-color: #7a2d35; color: #ffe1e4; }
     .copy-box { background: #151515; border: 1px dashed #474747; border-radius: 10px; padding: 12px; word-break: break-all; font-family: Consolas, monospace; font-size: 14px; }
@@ -38,59 +103,222 @@
     .topbar-main { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
     .stage-box { background: #1f1f1f; border: 1px solid #353535; border-radius: 14px; padding: 16px; }
     #stageText { font-size: 24px; color: #ffd166; font-weight: 700; }
-    .status-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 18px; }
+    .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 18px; }
     .status-title { font-size: 16px; margin-bottom: 10px; color: #ffd166; }
     .mini-list { display: flex; flex-wrap: wrap; gap: 10px; min-height: 64px; }
     .mini-item { width: 70px; text-align: center; font-size: 12px; color: #ddd; }
     .mini-item img { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; display: block; margin-bottom: 4px; }
+    .mini-item .song-art-placeholder { width: 70px; height: 70px; aspect-ratio: 1; font-size: 22px; border-width: 2px; margin-bottom: 4px; }
+    .mini-item .mini-diff { color: #aaa; font-size: 10px; line-height: 1.25; margin-top: 2px; }
+
     .song-grid { display: grid; grid-template-columns: repeat(5, minmax(160px, 1fr)); gap: 18px; margin-top: 20px; }
     .song { background: #222; padding: 10px; border-radius: 12px; position: relative; cursor: pointer; transition: transform 0.18s ease, opacity 0.18s ease; border: 1px solid #2d2d2d; }
     .song:hover { transform: scale(1.02); }
-    .song img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; display: block; }
+
+    .song img {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: 10px;
+      display: block;
+      border: 4px solid transparent;
+      box-shadow: 0 0 0 0 transparent;
+    }
+    .song-art-placeholder {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #303641, #1b1e25);
+      color: #dce2ef;
+      font-size: 42px;
+      font-weight: 800;
+      border: 4px solid #3c4350;
+    }
+
+    .border-master { border-color: #9b5de5 !important; box-shadow: 0 0 10px rgba(155,93,229,0.35); }
+    .border-remaster { border-color: #3a86ff !important; box-shadow: 0 0 10px rgba(58,134,255,0.35); }
+    .border-expert { border-color: #ef476f !important; box-shadow: 0 0 10px rgba(239,71,111,0.35); }
+
     .song-title { margin-top: 10px; font-size: 15px; font-weight: 700; line-height: 1.3; }
     .song-diff { color: #aaa; font-size: 13px; margin-top: 4px; }
     .song.disabled { opacity: 0.42; cursor: not-allowed; }
     .song.locked { opacity: 0.55; cursor: default; }
-    .ban-mark, .pick-mark { position: absolute; top: 12px; right: 12px; width: 44px; height: 44px; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 28px; }
+    .song.random-pool { cursor: default; opacity: 1; border-color: #3f3650; }
+    .song.random-pool:hover { transform: none; }
+    .song.random-highlight {
+      z-index: 2;
+      transform: scale(1.045);
+      border-color: #fff3a3;
+      background: #332d20;
+      box-shadow: 0 0 8px rgba(255,244,166,.95), 0 0 24px rgba(255,194,74,.9), 0 0 48px rgba(184,113,255,.55);
+    }
+    .song.random-highlight img,
+    .song.random-highlight .song-art-placeholder { filter: brightness(1.28) saturate(1.18); }
+    .song.random-drawn { border-color: #52d68a; box-shadow: 0 0 18px rgba(82,214,138,.55); }
+    .random-drawn-mark {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      min-width: 44px;
+      height: 44px;
+      padding: 0 10px;
+      border-radius: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: rgba(37,174,96,.96);
+      border: 2px solid #fff;
+      box-shadow: 0 0 14px rgba(37,174,96,.8);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .song.global-a-forbidden,
+    .song.global-b-forbidden { opacity: 0.42; cursor: not-allowed; }
+
+    .song.global-a-forbidden::after,
+    .song.global-b-forbidden::after {
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      font-size: 11px;
+      padding: 4px 6px;
+      border-radius: 999px;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(120,120,120,0.9);
+      content: "";
+    }
+
+    .song.global-a-forbidden::after { content: "A全局"; }
+    .song.global-b-forbidden::after { content: "B全局"; }
+
+    .ban-mark, .pick-mark {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 28px;
+    }
+
     .ban-mark { background: rgba(220,53,69,0.95); box-shadow: 0 0 10px rgba(220,53,69,0.7); }
     .pick-mark { background: rgba(40,167,69,0.98); box-shadow: 0 0 12px rgba(40,167,69,0.8); border: 2px solid white; font-size: 26px; }
     .bottom-actions, .room-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
-    .seat-summary { display:grid; grid-template-columns: repeat(3,1fr); gap:16px; margin-bottom:18px; }
+    .seat-summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 18px; }
     .seat-chip { background:#232323; border-radius:12px; padding:12px; border:1px solid #333; }
+    .match-context { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: center; margin-bottom: 18px; }
+    .match-context-player { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .match-context-player.right { flex-direction: row-reverse; text-align: right; }
+    .player-avatar { width: 62px; height: 62px; flex: 0 0 62px; border-radius: 50%; object-fit: cover; border: 2px solid #4a5260; background: #303641; }
+    .player-avatar.placeholder { display: grid; place-items: center; font-size: 24px; font-weight: 700; }
+    .versus { color: #ffd166; font-size: 22px; font-weight: 800; }
+    .active-match-preview { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-top: 14px; padding: 14px; border-radius: 12px; background: #151515; border: 1px solid #333; }
+    .active-match-preview .side { display: flex; align-items: center; gap: 10px; }
+    .active-match-preview .side:last-child { flex-direction: row-reverse; text-align: right; }
+    .active-match-preview .player-avatar { width: 48px; height: 48px; flex-basis: 48px; }
+    .random-result { margin-bottom: 18px; border-color: #6a4a86; background: linear-gradient(135deg, #211a29, #1c1c1c); }
+    .random-result h3 { color: #e0b7ff; }
+    .random-draw-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .random-song-card { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: 14px; padding: 12px; border: 1px solid #574264; border-radius: 12px; background: rgba(31,25,38,.9); }
+    .random-song-card img, .random-song-card .song-art-placeholder { width: 92px; height: 92px; aspect-ratio: 1; font-size: 28px; }
+    .random-index { color: #d9a7ff; font-size: 12px; font-weight: 700; margin-bottom: 5px; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 18px; background: rgba(0,0,0,.78); }
+    .modal-card { width: min(1080px, 100%); max-height: min(880px, 92vh); overflow: hidden; display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 14px; background: #1b1b1b; border: 1px solid #484848; border-radius: 16px; padding: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.55); }
+    .modal-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+    .modal-heading h2 { margin-bottom: 6px; }
+    .global-ban-toolbar { display: grid; grid-template-columns: minmax(180px, .6fr) minmax(240px, 1fr); gap: 12px; }
+    .global-ban-body { min-height: 0; display: flex; flex-direction: column; }
+    .global-ban-grid { min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding-right: 4px; }
+    .global-ban-option { display: grid; grid-template-columns: auto 54px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; padding: 9px; border: 1px solid #333; border-radius: 10px; background: #222; cursor: pointer; }
+    .global-ban-option.checked { border-color: #d19a36; background: #332918; }
+    .global-ban-option input { width: 18px; height: 18px; padding: 0; }
+    .global-ban-option img, .global-ban-option .song-art-placeholder { width: 54px; height: 54px; aspect-ratio: 1; border-width: 2px; border-radius: 7px; font-size: 19px; }
+    .global-ban-option .song-title { margin-top: 0; font-size: 13px; }
+    .global-ban-option .song-diff { font-size: 11px; }
+    .editor-summary { color: #ffd166; font-size: 13px; }
+    @media (max-width: 620px) {
+      .match-context, .active-match-preview { grid-template-columns: 1fr; text-align: center; }
+      .match-context-player, .match-context-player.right, .active-match-preview .side, .active-match-preview .side:last-child { justify-content: center; flex-direction: column; text-align: center; }
+      .random-draw-grid { grid-template-columns: 1fr; }
+      .global-ban-toolbar, .global-ban-grid { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <div class="page" id="lobbyPage">
-    <h1 class="page-title">Music BP Tool</h1>
-    <p class="muted">裁判创建房间并选择组别，随后邀请两位选手加入。第一位选手自动为 A，第二位自动为 B。两位选手到齐后，由裁判点击开始进入 BP。</p>
-
-    <div class="banner">这是浏览器点对点版本。房主即裁判，关闭页面后房间会失效。</div>
+    <div class="referee-only">
+      <h1 class="page-title">BP 房间控制</h1>
+      <p class="muted">选择组别与两名参赛选手，系统随机分配 A/B 并创建房间。两位选手到齐后由裁判开始 BP。</p>
+      <div class="banner">裁判端 · 房主关闭页面后房间会失效。赛事名单与曲库请从裁判工作台管理。</div>
+    </div>
+    <div class="participant-only">
+      <h1 class="page-title">加入 BP 房间</h1>
+    </div>
 
     <div class="stack" style="margin-top:16px;">
-      <div class="card">
+      <div class="card referee-only">
+        <div class="topbar-main">
+          <div>
+            <h2 style="margin-bottom:6px;">赛事管理</h2>
+            <div class="muted small">导入选手与头像、生成单败淘汰赛程，并选择当前场次。</div>
+          </div>
+          <div class="room-actions" style="margin-top:0;">
+            <a class="button-link secondary" href="referee.html">裁判工作台</a>
+            <a class="button-link" href="songs.html">曲库管理</a>
+            <a class="button-link" href="tournament.html">进入赛事控制台</a>
+          </div>
+        </div>
+        <div id="activeMatchPreview" class="active-match-preview hidden">
+          <div class="side"><div class="player-avatar placeholder" id="lobbyAvatarA">A</div><strong id="lobbyPlayerA">选手 A</strong></div>
+          <div style="text-align:center;"><div class="versus">VS</div><div class="muted small" id="lobbyMatchInfo"></div></div>
+          <div class="side"><div class="player-avatar placeholder" id="lobbyAvatarB">B</div><strong id="lobbyPlayerB">选手 B</strong></div>
+        </div>
+      </div>
+
+      <div class="card referee-only">
         <h2>创建房间（裁判）</h2>
         <div class="stack">
           <div>
             <label>组别</label>
             <select id="presetSelect">
               <option value="">请选择组别</option>
-              <option value="groupA">A组（10 首占位）</option>
-              <option value="groupB">B组（10 首占位）</option>
-              <option value="groupC">C组（10 首占位）</option>
+              <option value="groupA">A组</option>
+              <option value="groupB">B组</option>
+              <option value="groupC">C组</option>
             </select>
           </div>
+          <div class="pair-grid">
+            <div>
+              <label>参赛选手 1</label>
+              <select id="createPlayerOneSelect"><option value="">请选择选手</option></select>
+            </div>
+            <div>
+              <label>参赛选手 2</label>
+              <select id="createPlayerTwoSelect"><option value="">请选择选手</option></select>
+            </div>
+          </div>
+          <div class="muted small" id="createPairHint">选择同组选手后，创建房间时随机分配 A/B。</div>
           <button id="createRoomBtn" disabled>创建房间并作为裁判进入</button>
           <div id="createMessage" class="hidden"></div>
           <div id="roomInfoBox" class="hidden"></div>
         </div>
       </div>
 
-      <div class="card">
-        <h2>加入房间（选手 / 观众）</h2>
+      <div class="card participant-only">
         <div class="stack">
           <div>
             <label>房间号</label>
-            <input id="roomIdInput" placeholder="输入裁判给你的房间号" />
+            <input id="roomIdInput" placeholder="房间号" />
           </div>
           <div>
             <label>身份</label>
@@ -99,7 +327,11 @@
               <option value="spectator">观众</option>
             </select>
           </div>
-          <button id="joinRoomBtn">加入房间</button>
+          <div class="hidden" id="joinPlayerIdentityField">
+            <label>昵称</label>
+            <select id="joinPlayerSelect"><option value="">昵称</option></select>
+          </div>
+          <button id="joinRoomBtn">连接房间</button>
           <div id="joinMessage" class="hidden"></div>
         </div>
       </div>
@@ -118,12 +350,24 @@
         <div class="room-actions">
           <button class="secondary" id="backToLobbyBtn" style="width:auto;">返回首页</button>
           <button class="danger" id="leaveRoomBtn" style="width:auto;">离开房间</button>
-          <button class="secondary hidden" id="startBtn" style="width:auto;">开始 BP</button>
+          <button class="secondary hidden" id="editGlobalBanBtn" style="width:auto;">编辑全局 Ban</button>
           <button class="warn hidden" id="resetBtn" style="width:auto;">重置本局 BP</button>
         </div>
       </div>
 
       <div id="roomMessage" class="hidden"></div>
+
+      <div class="card match-context hidden" id="roomMatchStrip">
+        <div class="match-context-player">
+          <div class="player-avatar placeholder" id="roomAvatarA">A</div>
+          <div><div class="muted small">选手 A</div><strong id="roomPlayerA">选手 A</strong></div>
+        </div>
+        <div style="text-align:center;"><div class="versus">VS</div><div class="muted small" id="roomMatchInfo"></div></div>
+        <div class="match-context-player right">
+          <div class="player-avatar placeholder" id="roomAvatarB">B</div>
+          <div><div class="muted small">选手 B</div><strong id="roomPlayerB">选手 B</strong></div>
+        </div>
+      </div>
 
       <div class="seat-summary">
         <div class="seat-chip"><b>裁判</b><div class="small muted" id="refereeSeatText">已创建房间</div></div>
@@ -133,7 +377,6 @@
 
       <div class="stage-box">
         <div id="stageText">当前阶段：等待裁判开始</div>
-        <div class="small muted" id="stageTip" style="margin-top:8px;">两位选手进入后，裁判可点击开始按钮。</div>
       </div>
     </div>
 
@@ -152,8 +395,13 @@
       </div>
     </div>
 
+    <div class="card random-result hidden" id="randomResultSection">
+      <h3>随机曲目抽取</h3>
+      <div class="random-draw-grid" id="randomDrawGrid"></div>
+    </div>
+
     <div class="card">
-      <h3 style="margin-bottom:0;">歌曲池</h3>
+      <h3 id="songPoolTitle" style="margin-bottom:0;">自选曲池</h3>
       <div class="song-grid" id="songGrid"></div>
       <div class="bottom-actions">
         <button id="confirmBtn" style="width:auto;">确认当前阶段</button>
@@ -161,20 +409,71 @@
     </div>
   </div>
 
+  <div class="modal-backdrop hidden" id="globalBanEditorModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="globalBanEditorTitle">
+      <div class="modal-heading">
+        <div>
+          <h2 id="globalBanEditorTitle">编辑当前房间全局 Ban</h2>
+          <div class="muted small">仅修正当前房间，不改写已确认场次的历史 Pick。双方开始 Pick 后将锁定编辑。</div>
+        </div>
+        <button class="secondary" id="closeGlobalBanEditorBtn" style="width:auto;">关闭</button>
+      </div>
+      <div class="global-ban-toolbar">
+        <div>
+          <label for="globalBanPlayerSelect">编辑选手</label>
+          <select id="globalBanPlayerSelect"><option value="A">选手 A</option><option value="B">选手 B</option></select>
+        </div>
+        <div>
+          <label for="globalBanSearchInput">搜索歌曲</label>
+          <input id="globalBanSearchInput" placeholder="按曲名、难度或等级筛选" />
+        </div>
+      </div>
+      <div class="global-ban-body">
+        <div class="editor-summary" id="globalBanEditorSummary"></div>
+        <div class="global-ban-grid" id="globalBanEditorGrid" style="margin-top:10px;"></div>
+      </div>
+      <div class="room-actions" style="margin-top:0; justify-content:flex-end;">
+        <button class="danger" id="clearGlobalBanPlayerBtn" style="width:auto;">清空当前选手</button>
+        <button class="secondary" id="cancelGlobalBanEditorBtn" style="width:auto;">取消</button>
+        <button id="saveGlobalBanEditorBtn" style="width:auto;">保存并同步</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="tournament-store.js"></script>
+  <script src="tournament-core.js"></script>
+  <script src="song-core.js"></script>
+  <script src="song-data.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
   <script>
-    const stages = ["玩家A 全局Ban","玩家B 全局Ban","玩家A Ban","玩家B Ban","玩家A Pick","玩家B Pick","BP结束"];
-    const coverPath = "covers/axeria.jpg";
+    const stages = [
+      "玩家A 提交全局BP",
+      "玩家B 提交全局BP",
+      "玩家A 禁用一首曲目",
+      "玩家B 禁用两首曲目",
+      "玩家A 禁用一首曲目",
+      "玩家B Pick",
+      "玩家A Pick",
+      "玩家B 抽取第一首随机曲目",
+      "玩家A 抽取第二首随机曲目",
+      "BP结束"
+    ];
+
     const SPECTATOR_LIMIT = 3;
     const presetNameMap = { groupA: "A组", groupB: "B组", groupC: "C组" };
 
     const lobbyPage = document.getElementById("lobbyPage");
     const roomPage = document.getElementById("roomPage");
     const presetSelect = document.getElementById("presetSelect");
+    const createPlayerOneSelect = document.getElementById("createPlayerOneSelect");
+    const createPlayerTwoSelect = document.getElementById("createPlayerTwoSelect");
+    const createPairHint = document.getElementById("createPairHint");
     const createRoomBtn = document.getElementById("createRoomBtn");
     const joinRoomBtn = document.getElementById("joinRoomBtn");
     const roomIdInput = document.getElementById("roomIdInput");
     const joinRoleSelect = document.getElementById("joinRoleSelect");
+    const joinPlayerIdentityField = document.getElementById("joinPlayerIdentityField");
+    const joinPlayerSelect = document.getElementById("joinPlayerSelect");
     const createMessage = document.getElementById("createMessage");
     const joinMessage = document.getElementById("joinMessage");
     const roomInfoBox = document.getElementById("roomInfoBox");
@@ -185,232 +484,1517 @@
     const connectionText = document.getElementById("connectionText");
     const roomMessage = document.getElementById("roomMessage");
     const stageText = document.getElementById("stageText");
-    const stageTip = document.getElementById("stageTip");
     const refereeSeatText = document.getElementById("refereeSeatText");
     const seatAText = document.getElementById("seatAText");
     const seatBText = document.getElementById("seatBText");
     const banList = document.getElementById("banList");
     const pickAList = document.getElementById("pickAList");
     const pickBList = document.getElementById("pickBList");
+    const randomResultSection = document.getElementById("randomResultSection");
+    const randomDrawGrid = document.getElementById("randomDrawGrid");
+    const songPoolTitle = document.getElementById("songPoolTitle");
     const songGrid = document.getElementById("songGrid");
     const confirmBtn = document.getElementById("confirmBtn");
     const resetBtn = document.getElementById("resetBtn");
-    const startBtn = document.getElementById("startBtn");
     const leaveRoomBtn = document.getElementById("leaveRoomBtn");
     const backToLobbyBtn = document.getElementById("backToLobbyBtn");
+    const editGlobalBanBtn = document.getElementById("editGlobalBanBtn");
+    const globalBanEditorModal = document.getElementById("globalBanEditorModal");
+    const globalBanPlayerSelect = document.getElementById("globalBanPlayerSelect");
+    const globalBanSearchInput = document.getElementById("globalBanSearchInput");
+    const globalBanEditorSummary = document.getElementById("globalBanEditorSummary");
+    const globalBanEditorGrid = document.getElementById("globalBanEditorGrid");
+    const closeGlobalBanEditorBtn = document.getElementById("closeGlobalBanEditorBtn");
+    const cancelGlobalBanEditorBtn = document.getElementById("cancelGlobalBanEditorBtn");
+    const clearGlobalBanPlayerBtn = document.getElementById("clearGlobalBanPlayerBtn");
+    const saveGlobalBanEditorBtn = document.getElementById("saveGlobalBanEditorBtn");
+    backToLobbyBtn.textContent = window.BP_PORTAL_MODE === "referee" ? "返回房间控制" : "返回加入页";
+    const activeMatchPreview = document.getElementById("activeMatchPreview");
+    const lobbyPlayerA = document.getElementById("lobbyPlayerA");
+    const lobbyPlayerB = document.getElementById("lobbyPlayerB");
+    const lobbyMatchInfo = document.getElementById("lobbyMatchInfo");
+    const roomMatchStrip = document.getElementById("roomMatchStrip");
+    const roomPlayerA = document.getElementById("roomPlayerA");
+    const roomPlayerB = document.getElementById("roomPlayerB");
+    const roomMatchInfo = document.getElementById("roomMatchInfo");
 
-    let peer = null, roomPeerId = "", myRole = "", isHost = false, roomState = null, hostConnections = [], hostConn = null;
+    let peer = null;
+    let roomPeerId = "";
+    let myRole = "";
+    let isHost = false;
+    let roomState = null;
+    let hostConnections = [];
+    let hostConn = null;
+    let pendingMatchContext = null;
+    let pendingSongLibrary = [];
+    let pendingTournamentState = null;
+    let joinWelcomeReceived = false;
+    let joinConnectionTimeoutId = null;
+    let joinAttemptSerial = 0;
+    let randomHighlightTimer = null;
+    let randomHighlightStage = null;
+    let randomHighlightPoolIndexes = [];
+    let randomHighlightCursor = 0;
+    let globalBanDraft = null;
+    let tournamentDataReady = false;
 
-    function buildPreset(prefix) {
-      return Array.from({length:10}, (_,i)=>({ title: `${prefix} Song ${i+1}`, difficulty: i%3===0?"Master 12":i%3===1?"Master 13":"Master 14", cover: coverPath, status:"available", stageMarked:null, ownerRole:null }));
+    const JOIN_CONNECTION_TIMEOUT_MS = 5000;
+    const RANDOM_HIGHLIGHT_INTERVAL_MS = 85;
+
+    function prepareSongList(songList, globalAIds = new Set(), globalBIds = new Set()) {
+      return songList.map(song => ({
+        id: song.id || song.songId || song.title,
+        title: song.title,
+        difficulty: song.difficulty,
+        level: song.level || "",
+        chartType: getSongChartType(song),
+        groups: song.groups || [],
+        pools: song.pools || [],
+        cover: song.coverDataUrl || song.cover || resolveCoverPath(song.coverFile),
+        status: "available",
+        stageMarked: null,
+        ownerRole: null,
+        globalA: globalAIds.has(String(song.id || song.songId || song.title)),
+        globalB: globalBIds.has(String(song.id || song.songId || song.title)),
+        markOrder: null
+      }));
     }
-    const presets = { groupA: buildPreset("A组"), groupB: buildPreset("B组"), groupC: buildPreset("C组") };
-    const cloneData = d => JSON.parse(JSON.stringify(d));
+
+    const presets = window.SONG_PRESETS;
+    const cloneData = data => JSON.parse(JSON.stringify(data));
+
+    function resolveCoverPath(coverFile) {
+      if (!coverFile) return "";
+      return /[\\/]/.test(coverFile) ? coverFile.replace(/\\/g, "/") : `covers/${coverFile}`;
+    }
+
+    function groupFromPreset(presetKey) {
+      return String(presetKey || "").replace(/^group/, "").toUpperCase();
+    }
+
+    function getPoolSongs(presetKey, pool) {
+      const group = groupFromPreset(presetKey);
+      if (pendingSongLibrary.length) return SongCore.getSongsFor(pendingSongLibrary, group, pool);
+      return pool === "self" ? (presets[presetKey] || []) : [];
+    }
+
+    function summarizePlayer(player) {
+      return {
+        id: player.id,
+        nickname: player.nickname,
+        group: player.group,
+        avatarFile: player.avatarFile || "",
+        avatarDataUrl: player.avatarDataUrl || ""
+      };
+    }
+
+    function fillPlayerSelect(select, players, selectedId = "") {
+      select.innerHTML = '<option value="">请选择选手</option>';
+      players.forEach(player => {
+        const option = document.createElement("option");
+        option.value = player.id;
+        option.textContent = player.nickname;
+        select.appendChild(option);
+      });
+      if (players.some(player => player.id === selectedId)) select.value = selectedId;
+    }
+
+    function getSelectedRoomPlayers() {
+      const players = pendingTournamentState?.players || [];
+      return {
+        first: players.find(player => player.id === createPlayerOneSelect.value) || null,
+        second: players.find(player => player.id === createPlayerTwoSelect.value) || null
+      };
+    }
+
+    function getLinkedReadyMatch(group, firstId, secondId) {
+      return TournamentCore.findReadyMatchForPlayers(
+        pendingTournamentState,
+        group,
+        firstId,
+        secondId
+      );
+    }
+
+    function updateCreatePairHint() {
+      const group = groupFromPreset(presetSelect.value);
+      const { first, second } = getSelectedRoomPlayers();
+      createPairHint.style.color = "";
+      if (!group) {
+        createPairHint.textContent = "请先选择组别。";
+        return;
+      }
+      if (!first || !second) {
+        createPairHint.textContent = "选择同组选手后，创建房间时随机分配 A/B。";
+        return;
+      }
+      if (first.id === second.id) {
+        createPairHint.textContent = "两边不能选择同一名选手。";
+        createPairHint.style.color = "#ff9eaa";
+        return;
+      }
+      const linked = getLinkedReadyMatch(group, first.id, second.id);
+      if (linked) {
+        createPairHint.textContent = `已关联赛程 ${linked.id}；创建时随机分配 A/B。`;
+        createPairHint.style.color = "#9ff2ce";
+      } else {
+        createPairHint.textContent = "这组选手当前没有对应的待比赛赛程；仍可创建房间，但赛果不会关联淘汰树。";
+        createPairHint.style.color = "#ffd18a";
+      }
+    }
+
+    function updateLobbyPairPreview() {
+      const { first, second } = getSelectedRoomPlayers();
+      const selectedIds = new Set([first?.id, second?.id].filter(Boolean));
+      const contextIds = new Set([pendingMatchContext?.playerA?.id, pendingMatchContext?.playerB?.id].filter(Boolean));
+      const matchesContext = selectedIds.size === 2 && contextIds.size === 2 && [...selectedIds].every(id => contextIds.has(id));
+      if (matchesContext) renderLobbyMatchContext();
+      else activeMatchPreview.classList.add("hidden");
+    }
+
+    function populateCreatePlayerSelects() {
+      const group = groupFromPreset(presetSelect.value);
+      const previousFirst = createPlayerOneSelect.value;
+      const previousSecond = createPlayerTwoSelect.value;
+      const players = (pendingTournamentState?.players || [])
+        .filter(player => player.group === group)
+        .sort((left, right) => (left.seed || Number.MAX_SAFE_INTEGER) - (right.seed || Number.MAX_SAFE_INTEGER) || left.nickname.localeCompare(right.nickname, "zh-CN"));
+      const defaultFirst = pendingMatchContext?.group === group ? pendingMatchContext.playerA?.id : "";
+      const defaultSecond = pendingMatchContext?.group === group ? pendingMatchContext.playerB?.id : "";
+      fillPlayerSelect(createPlayerOneSelect, players, previousFirst || defaultFirst);
+      fillPlayerSelect(createPlayerTwoSelect, players, previousSecond || defaultSecond);
+      updateCreatePairHint();
+      updateLobbyPairPreview();
+      updateCreateButtonState();
+    }
+
+    function prepareSelectedMatchContext() {
+      const group = groupFromPreset(presetSelect.value);
+      const { first, second } = getSelectedRoomPlayers();
+      if (!first || !second || first.id === second.id) throw new Error("请选择两名不同的同组选手。");
+      const assigned = TournamentCore.assignRandomSides(first, second, secureRandomFraction);
+      const linkedMatch = getLinkedReadyMatch(group, first.id, second.id);
+      pendingMatchContext = {
+        matchId: linkedMatch?.id || null,
+        eventName: pendingTournamentState?.eventName || "",
+        group,
+        round: linkedMatch?.round || null,
+        slot: linkedMatch?.slot || null,
+        manualPair: !linkedMatch,
+        playerA: summarizePlayer(assigned.playerA),
+        playerB: summarizePlayer(assigned.playerB)
+      };
+      return linkedMatch;
+    }
+
     function createInitialState(presetKey) {
+      const selfSongs = getPoolSongs(presetKey, "self");
+      const randomSongs = getPoolSongs(presetKey, "random");
+      const automaticGlobalBan = Boolean(pendingMatchContext?.playerA?.id && pendingMatchContext?.playerB?.id);
+      const excludedMatchId = pendingMatchContext?.matchId || null;
+      const globalAIds = new Set(automaticGlobalBan
+        ? TournamentCore.collectPlayerPickHistory(pendingTournamentState, pendingMatchContext.playerA.id, excludedMatchId)
+        : []);
+      const globalBIds = new Set(automaticGlobalBan
+        ? TournamentCore.collectPlayerPickHistory(pendingTournamentState, pendingMatchContext.playerB.id, excludedMatchId)
+        : []);
       return {
         presetKey,
         started: false,
-        currentStage: 0,
+        currentStage: automaticGlobalBan ? 2 : 0,
         ended: false,
+        matchContext: pendingMatchContext ? cloneData(pendingMatchContext) : null,
+        automaticGlobalBan,
         seats: { referee: true, A: false, B: false },
         spectatorCount: 0,
-        songs: cloneData(presets[presetKey])
+        actionCounter: 0,
+        usesImportedSongs: pendingSongLibrary.length > 0,
+        randomEnabled: randomSongs.length >= 2,
+        songs: prepareSongList(cloneData(selfSongs), globalAIds, globalBIds),
+        randomPool: prepareSongList(cloneData(randomSongs)),
+        randomDraw: []
       };
     }
-    function generateRoomId() { return String(Math.floor(Math.random()*900)+100); }
-    function showMessage(el,text,type="banner"){ el.classList.remove("hidden","banner","success-banner","error-banner"); el.classList.add(type); el.textContent=text; }
-    function clearMessage(el){ el.className="hidden"; el.textContent=""; }
-    function getCurrentActor(stageIndex){ if(stageIndex===0||stageIndex===2||stageIndex===4) return "A"; if(stageIndex===1||stageIndex===3||stageIndex===5) return "B"; return "none"; }
-    function isBanStage(s){ return s>=0 && s<=3; }
-    function isPickStage(s){ return s===4 || s===5; }
-    function isMyTurn(){ return roomState && roomState.started && myRole===getCurrentActor(roomState.currentStage); }
-    function updateConnectionText(text){ connectionText.textContent=text; }
-    function setupPeerCommonEvents(){ peer.on("error", err=>{ showMessage(roomMessage, `连接错误：${err.type||err.message||err}`, "error-banner"); updateConnectionText("连接异常"); }); }
 
-    function createHostPeer(){
+    function nextActionOrder() {
+      roomState.actionCounter = (roomState.actionCounter || 0) + 1;
+      return roomState.actionCounter;
+    }
+
+    function generateRoomId() {
+      return String(Math.floor(Math.random() * 900) + 100);
+    }
+
+    function showMessage(el, text, type = "banner") {
+      el.classList.remove("hidden", "banner", "success-banner", "error-banner");
+      el.classList.add(type);
+      el.textContent = text;
+    }
+
+    function clearMessage(el) {
+      el.className = "hidden";
+      el.textContent = "";
+    }
+
+    function setAvatarElement(elementId, player, fallback) {
+      const oldElement = document.getElementById(elementId);
+      if (!oldElement) return;
+      const replacement = document.createElement(player && player.avatarDataUrl ? "img" : "div");
+      replacement.id = elementId;
+      replacement.className = player && player.avatarDataUrl ? "player-avatar" : "player-avatar placeholder";
+      if (player && player.avatarDataUrl) {
+        replacement.src = player.avatarDataUrl;
+        replacement.alt = player.nickname || fallback;
+      } else {
+        replacement.textContent = player && player.nickname ? player.nickname.slice(0, 1) : fallback;
+      }
+      oldElement.replaceWith(replacement);
+    }
+
+    function renderLobbyMatchContext() {
+      if (!pendingMatchContext) {
+        activeMatchPreview.classList.add("hidden");
+        return;
+      }
+      activeMatchPreview.classList.remove("hidden");
+      lobbyPlayerA.textContent = pendingMatchContext.playerA.nickname;
+      lobbyPlayerB.textContent = pendingMatchContext.playerB.nickname;
+      lobbyMatchInfo.textContent = pendingMatchContext.matchId
+        ? `${pendingMatchContext.group}组 · 第 ${pendingMatchContext.round} 轮 · ${pendingMatchContext.matchId} · 创建时随机分配 A/B`
+        : `${pendingMatchContext.group}组 · 自定义对局 · 创建时随机分配 A/B`;
+      setAvatarElement("lobbyAvatarA", pendingMatchContext.playerA, "A");
+      setAvatarElement("lobbyAvatarB", pendingMatchContext.playerB, "B");
+    }
+
+    function renderRoomMatchContext() {
+      const context = roomState && roomState.matchContext;
+      roomMatchStrip.classList.toggle("hidden", !context);
+      if (!context) return;
+      roomPlayerA.textContent = context.playerA.nickname;
+      roomPlayerB.textContent = context.playerB.nickname;
+      roomMatchInfo.textContent = context.matchId
+        ? `${context.group}组 · 第 ${context.round} 轮 · ${context.matchId}`
+        : `${context.group}组 · 自定义对局`;
+      setAvatarElement("roomAvatarA", context.playerA, "A");
+      setAvatarElement("roomAvatarB", context.playerB, "B");
+    }
+
+    async function loadPendingMatchContext() {
+      try {
+        const tournamentState = await TournamentStore.loadState();
+        pendingTournamentState = tournamentState;
+        const requestedMatchId = new URLSearchParams(location.search).get("match");
+        let transferredContext = null;
+        if (requestedMatchId && String(window.name || "").startsWith("music-bp-match:")) {
+          try {
+            const candidate = JSON.parse(window.name.slice("music-bp-match:".length));
+            if (candidate && candidate.matchId === requestedMatchId) transferredContext = candidate;
+          } catch (error) {
+            console.warn("Unable to parse transferred match context.", error);
+          }
+        }
+
+        if (transferredContext) {
+          pendingMatchContext = transferredContext;
+        } else {
+          pendingMatchContext = TournamentStore.getMatchContext(
+            tournamentState,
+            requestedMatchId || tournamentState.activeMatchId
+          );
+        }
+        pendingSongLibrary = Array.isArray(tournamentState.songs) ? tournamentState.songs : [];
+        if (pendingMatchContext) {
+          const presetKey = `group${pendingMatchContext.group}`;
+          if (presets[presetKey] || pendingSongLibrary.some(song => song.groups?.includes(pendingMatchContext.group))) {
+            presetSelect.value = presetKey;
+          }
+        }
+        renderLobbyMatchContext();
+      } catch (error) {
+        console.warn("Unable to load tournament match context.", error);
+      } finally {
+        tournamentDataReady = true;
+        populateCreatePlayerSelects();
+        updateCreateButtonState();
+      }
+    }
+
+    function getCurrentActor(stageIndex) {
+      if (stageIndex === 0 || stageIndex === 2 || stageIndex === 4 || stageIndex === 6) return "A";
+      if (stageIndex === 1 || stageIndex === 3 || stageIndex === 5 || stageIndex === 7) return "B";
+      if (stageIndex === 8) return "A";
+      return "none";
+    }
+
+    function isGlobalStage(stageIndex) {
+      return stageIndex === 0 || stageIndex === 1;
+    }
+
+    function isBanStage(stageIndex) {
+      return stageIndex === 2 || stageIndex === 3 || stageIndex === 4;
+    }
+
+    function isPickStage(stageIndex) {
+      return stageIndex === 5 || stageIndex === 6;
+    }
+
+    function isRandomStage(stageIndex) {
+      return stageIndex === 7 || stageIndex === 8;
+    }
+
+    function isMyTurn() {
+      return roomState && roomState.started && myRole === getCurrentActor(roomState.currentStage);
+    }
+
+    function getGlobalForbiddenType(song) {
+      if (!roomState || !roomState.started) return "";
+      const stage = roomState.currentStage;
+
+      if (isBanStage(stage)) {
+        if ((stage === 2 || stage === 4) && myRole === "A" && song.globalB) return "global-b-forbidden";
+        if (stage === 3 && myRole === "B" && song.globalA) return "global-a-forbidden";
+      }
+
+      if (isPickStage(stage)) {
+        if (stage === 5 && myRole === "B" && song.globalB) return "global-b-forbidden";
+        if (stage === 6 && myRole === "A" && song.globalA) return "global-a-forbidden";
+      }
+
+      return "";
+    }
+
+    function updateConnectionText(text) {
+      connectionText.textContent = text;
+    }
+
+    function setupPeerCommonEvents() {
+      peer.on("error", err => {
+        showMessage(roomMessage, `连接错误：${err.type || err.message || err}`, "error-banner");
+        updateConnectionText("连接异常");
+      });
+    }
+
+    function clearJoinConnectionTimeout() {
+      if (joinConnectionTimeoutId !== null) {
+        clearTimeout(joinConnectionTimeoutId);
+        joinConnectionTimeoutId = null;
+      }
+    }
+
+    function resetJoinLobby(message) {
+      joinWelcomeReceived = false;
+      joinPlayerIdentityField.classList.add("hidden");
+      joinPlayerSelect.innerHTML = '<option value="">昵称</option>';
+      joinRoomBtn.disabled = false;
+      joinRoomBtn.textContent = "连接房间";
+      updateConnectionText("未连接");
+      if (message) showMessage(joinMessage, message, "error-banner");
+    }
+
+    function abortPendingJoin(attemptSerial, message) {
+      if (attemptSerial !== joinAttemptSerial || joinWelcomeReceived || myRole) return;
+      clearJoinConnectionTimeout();
+      joinAttemptSerial += 1;
+      const pendingConnection = hostConn;
+      const pendingPeer = peer;
+      hostConn = null;
+      peer = null;
+      try { pendingConnection?.close(); } catch (e) {}
+      try { pendingPeer?.destroy(); } catch (e) {}
+      resetJoinLobby(message);
+    }
+
+    function startJoinConnectionTimeout(attemptSerial) {
+      clearJoinConnectionTimeout();
+      joinConnectionTimeoutId = setTimeout(() => {
+        abortPendingJoin(attemptSerial, "未找到房间或连接超时，请检查房间号后重试。");
+      }, JOIN_CONNECTION_TIMEOUT_MS);
+    }
+
+    function createHostPeer() {
       roomPeerId = generateRoomId();
       peer = new Peer(roomPeerId);
       isHost = true;
       myRole = "referee";
       roomState = createInitialState(presetSelect.value);
       setupPeerCommonEvents();
-      peer.on("open", ()=>{
+
+      peer.on("open", () => {
         showRoom();
         updateConnectionText("裁判在线");
-        showMessage(createMessage, "房间创建成功。把房间号发给选手和观众即可。", "success-banner");
+        const context = roomState.matchContext;
+        const assignment = context ? `随机结果：${context.playerA.nickname} 为 A，${context.playerB.nickname} 为 B。` : "";
+        showMessage(createMessage, `房间创建成功。${assignment} 把房间号发给选手和观众即可。`, "success-banner");
+        showMessage(roomMessage, `${assignment} 等待两位选手按昵称入座。`, "success-banner");
         roomInfoBox.classList.remove("hidden");
         roomInfoBox.className = "copy-box";
         roomInfoBox.innerHTML = `房间号：${roomPeerId}`;
         renderRoom();
       });
-      peer.on("connection", conn=>{
-        conn.on("open", ()=>{ hostConnections.push(conn); conn.send({type:"welcome", state: roomState}); });
-        conn.on("data", data=>handleHostData(conn,data));
-        conn.on("close", ()=>{
-          hostConnections = hostConnections.filter(c=>c!==conn);
-          if(conn._clientRole==="A") roomState.seats.A = false;
-          if(conn._clientRole==="B") roomState.seats.B = false;
-          if(conn._clientRole==="spectator") roomState.spectatorCount = Math.max(0, roomState.spectatorCount-1);
-          broadcastState(); renderRoom();
+
+      peer.on("connection", conn => {
+        conn.on("open", () => {
+          hostConnections.push(conn);
+          conn.send({ type: "welcome", state: roomState });
+        });
+
+        conn.on("data", data => handleHostData(conn, data));
+
+        conn.on("close", () => {
+          hostConnections = hostConnections.filter(c => c !== conn);
+          if (conn._clientRole === "A") roomState.seats.A = false;
+          if (conn._clientRole === "B") roomState.seats.B = false;
+          if (conn._clientRole === "spectator") {
+            roomState.spectatorCount = Math.max(0, roomState.spectatorCount - 1);
+          }
+          broadcastState();
+          renderRoom();
         });
       });
     }
 
-    function handleHostData(conn,data){
-      if(!data||!data.type) return;
-      if(data.type==="request-join"){
+    function handleHostData(conn, data) {
+      if (!data || !data.type) return;
+
+      if (data.type === "request-join") {
         const role = data.role;
-        if(role==="player"){
-          if(!roomState.seats.A){ roomState.seats.A = true; conn._clientRole = "A"; conn.send({type:"join-approved", role:"A", state: roomState}); }
-          else if(!roomState.seats.B){ roomState.seats.B = true; conn._clientRole = "B"; conn.send({type:"join-approved", role:"B", state: roomState}); }
-          else { conn.send({type:"join-denied", message:"两位选手席已满。"}); return; }
-          broadcastState(); renderRoom(); return;
+
+        if (role === "player") {
+          const requestedPlayerId = String(data.playerId || "");
+          const context = roomState.matchContext;
+          let assignedRole = "";
+          if (context) {
+            if (requestedPlayerId === String(context.playerA?.id || "")) assignedRole = "A";
+            if (requestedPlayerId === String(context.playerB?.id || "")) assignedRole = "B";
+            if (!assignedRole) {
+              conn.send({ type: "join-denied", message: "所选身份不属于本场对局。" });
+              return;
+            }
+          } else if (!roomState.seats.A) {
+            assignedRole = "A";
+          } else if (!roomState.seats.B) {
+            assignedRole = "B";
+          }
+          if (!assignedRole) {
+            conn.send({ type: "join-denied", message: "两位选手席已满。" });
+            return;
+          }
+          if (roomState.seats[assignedRole]) {
+            const nickname = context?.[`player${assignedRole}`]?.nickname || `选手 ${assignedRole}`;
+            conn.send({ type: "join-denied", message: `${nickname} 已经加入房间。` });
+            return;
+          }
+          roomState.seats[assignedRole] = true;
+          conn._clientRole = assignedRole;
+          conn._clientPlayerId = requestedPlayerId;
+          conn.send({ type: "join-approved", role: assignedRole, playerId: requestedPlayerId, state: roomState });
+          broadcastState();
+          renderRoom();
+          return;
         }
-        if(role==="spectator"){
-          if(roomState.spectatorCount >= SPECTATOR_LIMIT){ conn.send({type:"join-denied", message:"观战席已满。"}); return; }
-          roomState.spectatorCount += 1; conn._clientRole = "spectator"; conn.send({type:"join-approved", role:"spectator", state: roomState}); broadcastState(); renderRoom();
+
+        if (role === "spectator") {
+          if (roomState.spectatorCount >= SPECTATOR_LIMIT) {
+            conn.send({ type: "join-denied", message: "观战席已满。" });
+            return;
+          }
+          roomState.spectatorCount += 1;
+          conn._clientRole = "spectator";
+          conn.send({ type: "join-approved", role: "spectator", state: roomState });
+          broadcastState();
+          renderRoom();
         }
         return;
       }
-      if(data.type==="state-update"){ roomState = data.state; broadcastState(); renderRoom(); return; }
-      if(data.type==="leave-room"){
-        if(conn._clientRole==="A") roomState.seats.A = false;
-        if(conn._clientRole==="B") roomState.seats.B = false;
-        if(conn._clientRole==="spectator") roomState.spectatorCount = Math.max(0, roomState.spectatorCount-1);
-        broadcastState(); renderRoom();
+
+      if (data.type === "state-update") {
+        const wasEnded = Boolean(roomState?.ended);
+        roomState = data.state;
+        broadcastState();
+        renderRoom();
+        if (!wasEnded && roomState?.ended) persistBpResult();
+        return;
+      }
+
+      if (data.type === "leave-room") {
+        if (conn._clientRole === "A") roomState.seats.A = false;
+        if (conn._clientRole === "B") roomState.seats.B = false;
+        if (conn._clientRole === "spectator") {
+          roomState.spectatorCount = Math.max(0, roomState.spectatorCount - 1);
+        }
+        broadcastState();
+        renderRoom();
       }
     }
 
-    function joinHostPeer(){
-      const targetId = roomIdInput.value.trim().toUpperCase();
-      if(!targetId){ showMessage(joinMessage, "请先输入房间号。", "error-banner"); return; }
-      roomPeerId = targetId; isHost = false; myRole = ""; peer = new Peer(); setupPeerCommonEvents();
-      peer.on("open", ()=>{
-        hostConn = peer.connect(roomPeerId, {reliable:true});
-        hostConn.on("open", ()=>{ updateConnectionText("已连接裁判"); hostConn.send({type:"request-join", role: joinRoleSelect.value}); });
-        hostConn.on("data", handleClientData);
-        hostConn.on("close", ()=>{ updateConnectionText("裁判已离线"); showMessage(roomMessage, "裁判已离线，房间已失效。请重新创建房间。", "error-banner"); confirmBtn.disabled = true; startBtn.disabled = true; });
+    function populateJoinPlayerOptions(state) {
+      joinPlayerSelect.innerHTML = '<option value="">昵称</option>';
+      const context = state?.matchContext;
+      [context?.playerA, context?.playerB].filter(Boolean).forEach(player => {
+        const option = document.createElement("option");
+        option.value = player.id;
+        option.textContent = player.nickname;
+        joinPlayerSelect.appendChild(option);
+      });
+      joinPlayerIdentityField.classList.toggle("hidden", !context || joinRoleSelect.value !== "player");
+    }
+
+    function requestJoinFromClient() {
+      if (!hostConn?.open || !joinWelcomeReceived) return;
+      const role = joinRoleSelect.value;
+      if (role === "player" && roomState?.matchContext && !joinPlayerSelect.value) {
+        return;
+      }
+      joinRoomBtn.disabled = true;
+      joinRoomBtn.textContent = "等待裁判……";
+      hostConn.send({
+        type: "request-join",
+        role,
+        playerId: role === "player" ? joinPlayerSelect.value : ""
       });
     }
 
-    function handleClientData(data){
-      if(!data||!data.type) return;
-      if(data.type==="join-denied"){ showMessage(joinMessage, data.message||"加入失败。", "error-banner"); return; }
-      if(data.type==="join-approved"){ myRole = data.role; roomState = data.state; clearMessage(joinMessage); showRoom(); renderRoom(); return; }
-      if(data.type==="welcome"){ return; }
-      if(data.type==="state-sync"){ roomState = data.state; renderRoom(); }
+    function joinHostPeer() {
+      const targetId = roomIdInput.value.trim().toUpperCase();
+      if (!targetId) {
+        showMessage(joinMessage, "请先输入房间号。", "error-banner");
+        return;
+      }
+      roomPeerId = targetId;
+      isHost = false;
+      myRole = "";
+      joinWelcomeReceived = false;
+      joinPlayerIdentityField.classList.add("hidden");
+      joinRoomBtn.disabled = true;
+      joinRoomBtn.textContent = "正在连接……";
+      const currentAttempt = ++joinAttemptSerial;
+      const clientPeer = new Peer();
+      peer = clientPeer;
+      setupPeerCommonEvents();
+      startJoinConnectionTimeout(currentAttempt);
+
+      clientPeer.on("open", () => {
+        if (currentAttempt !== joinAttemptSerial) {
+          try { clientPeer.destroy(); } catch (e) {}
+          return;
+        }
+        const clientConnection = clientPeer.connect(roomPeerId, { reliable: true });
+        hostConn = clientConnection;
+        clientConnection.on("open", () => {
+          updateConnectionText("已连接裁判");
+        });
+        clientConnection.on("data", handleClientData);
+        clientConnection.on("close", () => {
+          if (currentAttempt !== joinAttemptSerial) return;
+          updateConnectionText("裁判已离线");
+          if (!myRole) {
+            abortPendingJoin(currentAttempt, "未能保持与裁判的连接，请确认房间号后重试。");
+          } else {
+            clearJoinConnectionTimeout();
+            showMessage(roomMessage, "裁判已离线，房间已失效。请重新创建房间。", "error-banner");
+            confirmBtn.disabled = true;
+          }
+        });
+      });
+
+      clientPeer.on("error", err => {
+        if (currentAttempt !== joinAttemptSerial || joinWelcomeReceived || myRole) return;
+        abortPendingJoin(currentAttempt, `加入失败：${err.type || err.message || err}。请检查房间号后重试。`);
+      });
     }
 
-    function broadcastState(){ if(!isHost) return; hostConnections.forEach(conn=>{ if(conn.open) conn.send({type:"state-sync", state: roomState}); }); }
-    function showRoom(){ lobbyPage.classList.add("hidden"); roomPage.classList.remove("hidden"); roomIdText.textContent = roomPeerId; roleText.textContent = myRole==="spectator"?"观战":myRole==="referee"?"裁判":`玩家 ${myRole}`; presetText.textContent = presetNameMap[roomState.presetKey]||roomState.presetKey; clearMessage(roomMessage); }
-    function sendStateFromClient(){ if(isHost){ broadcastState(); renderRoom(); } else if(hostConn && hostConn.open){ hostConn.send({type:"state-update", state: roomState}); } }
+    function handleClientData(data) {
+      if (!data || !data.type) return;
+      if (data.type === "join-denied") {
+        showMessage(joinMessage, data.message || "加入失败。", "error-banner");
+        joinRoomBtn.disabled = false;
+        joinRoomBtn.textContent = joinRoleSelect.value === "player" ? "加入" : "加入观战";
+        return;
+      }
+      if (data.type === "join-approved") {
+        clearJoinConnectionTimeout();
+        myRole = data.role;
+        roomState = data.state;
+        clearMessage(joinMessage);
+        joinPlayerIdentityField.classList.add("hidden");
+        showRoom();
+        renderRoom();
+        return;
+      }
+      if (data.type === "welcome") {
+        clearJoinConnectionTimeout();
+        roomState = data.state;
+        joinWelcomeReceived = true;
+        populateJoinPlayerOptions(roomState);
+        if (joinRoleSelect.value === "spectator") {
+          requestJoinFromClient();
+        } else if (roomState?.matchContext) {
+          joinRoomBtn.disabled = true;
+          joinRoomBtn.textContent = "加入";
+          clearMessage(joinMessage);
+        } else {
+          requestJoinFromClient();
+        }
+        return;
+      }
+      if (data.type === "state-sync") {
+        roomState = data.state;
+        renderRoom();
+      }
+    }
 
-    function renderMiniList(container,songs){ container.innerHTML=""; if(!songs.length){ container.innerHTML='<div class="muted small">暂无</div>'; return; } songs.forEach(song=>{ const div=document.createElement("div"); div.className="mini-item"; div.innerHTML=`<img src="${song.cover}" alt="${song.title}"><div>${song.title}</div>`; container.appendChild(div); }); }
+    function broadcastState() {
+      if (!isHost) return;
+      hostConnections.forEach(conn => {
+        if (conn.open) conn.send({ type: "state-sync", state: roomState });
+      });
+    }
 
-    function canInteractWithSong(song){
-      if(!roomState || !roomState.started) return false;
-      if(myRole==="spectator" || myRole==="referee") return false;
-      if(!isMyTurn()) return false;
+    function getMyRoleText() {
+      if (myRole === "spectator") return "观战";
+      if (myRole === "referee") return "裁判";
+      const player = roomState?.matchContext?.[`player${myRole}`];
+      return player ? `${player.nickname}（玩家 ${myRole}）` : `玩家 ${myRole}`;
+    }
+
+    function showRoom() {
+      lobbyPage.classList.add("hidden");
+      roomPage.classList.remove("hidden");
+      roomIdText.textContent = roomPeerId;
+      roleText.textContent = getMyRoleText();
+      presetText.textContent = presetNameMap[roomState.presetKey] || roomState.presetKey;
+      clearMessage(roomMessage);
+    }
+
+    function sendStateFromClient() {
+      if (isHost) {
+        broadcastState();
+        renderRoom();
+      } else if (hostConn && hostConn.open) {
+        hostConn.send({ type: "state-update", state: roomState });
+      }
+    }
+
+    function getSongChartType(song) {
+      const value = String(song.chartType || song.type || "").trim().toUpperCase();
+      return value === "DX" || value === "SD" ? value : "";
+    }
+
+    function formatSongDifficulty(song) {
+      const difficulty = String(song.difficulty || "").trim();
+      const level = String(song.level || "").trim();
+      const chartType = getSongChartType(song);
+      const parts = [difficulty];
+      if (level && !difficulty.toLowerCase().includes(level.toLowerCase())) parts.push(level);
+      const base = parts.filter(Boolean).join(" ");
+      if (!chartType || new RegExp(`(^|\\s)${chartType}($|\\s)`, "i").test(base)) return base;
+      return `${base} ${chartType}`.trim();
+    }
+
+    function getSongBorderClass(song) {
+      const diff = String(song.difficulty || "").trim().toLowerCase();
+      if (diff.includes("re:master") || diff.includes("re master") || diff.includes("re-master") || diff.includes("remaster")) return "border-remaster";
+      if (diff.includes("master")) return "border-master";
+      if (diff.includes("expert")) return "border-expert";
+      return "";
+    }
+
+    function createSongArtwork(song, borderClass = "") {
+      if (song.cover) {
+        const image = document.createElement("img");
+        image.className = borderClass;
+        image.src = song.cover;
+        image.alt = song.title;
+        image.onerror = () => {
+          const placeholder = document.createElement("div");
+          placeholder.className = `song-art-placeholder ${borderClass}`.trim();
+          placeholder.textContent = song.title.slice(0, 1) || "?";
+          image.replaceWith(placeholder);
+        };
+        return image;
+      }
+      const placeholder = document.createElement("div");
+      placeholder.className = `song-art-placeholder ${borderClass}`.trim();
+      placeholder.textContent = song.title.slice(0, 1) || "?";
+      return placeholder;
+    }
+
+    function renderMiniList(container, songs) {
+      container.innerHTML = "";
+      if (!songs.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted small";
+        empty.textContent = "暂无";
+        container.appendChild(empty);
+        return;
+      }
+      songs.forEach(song => {
+        const div = document.createElement("div");
+        div.className = "mini-item";
+        div.appendChild(createSongArtwork(song));
+        const title = document.createElement("div");
+        title.textContent = song.title;
+        const diff = document.createElement("div");
+        diff.className = "mini-diff";
+        diff.textContent = formatSongDifficulty(song);
+        div.append(title, diff);
+        container.appendChild(div);
+      });
+    }
+
+    function canEditGlobalBan() {
+      if (!roomState || myRole !== "referee" || roomState.ended) return false;
+      return !roomState.started || roomState.currentStage <= 5;
+    }
+
+    function getGlobalBanPlayerName(role) {
+      return roomState?.matchContext?.[`player${role}`]?.nickname || `选手 ${role}`;
+    }
+
+    function updateGlobalBanEditorSummary() {
+      if (!globalBanDraft || !roomState) return;
+      const role = globalBanPlayerSelect.value === "B" ? "B" : "A";
+      const selectedCount = globalBanDraft[role].size;
+      globalBanEditorSummary.textContent = `${getGlobalBanPlayerName(role)} · 当前全局 Ban ${selectedCount} 首`;
+    }
+
+    function renderGlobalBanEditor() {
+      if (!globalBanDraft || !roomState) return;
+      const role = globalBanPlayerSelect.value === "B" ? "B" : "A";
+      const selectedSet = globalBanDraft[role];
+      const keyword = globalBanSearchInput.value.trim().toLowerCase();
+      const filteredSongs = roomState.songs.filter(song => {
+        if (!keyword) return true;
+        return `${song.title} ${song.difficulty} ${song.level || ""} ${song.chartType || ""}`.toLowerCase().includes(keyword);
+      });
+      globalBanEditorGrid.innerHTML = "";
+      filteredSongs.forEach(song => {
+        const songKey = getRandomSongKey(song);
+        const option = document.createElement("label");
+        option.className = `global-ban-option${selectedSet.has(songKey) ? " checked" : ""}`;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = selectedSet.has(songKey);
+        checkbox.onchange = () => {
+          if (checkbox.checked) selectedSet.add(songKey);
+          else selectedSet.delete(songKey);
+          option.classList.toggle("checked", checkbox.checked);
+          updateGlobalBanEditorSummary();
+        };
+        const info = document.createElement("div");
+        const title = document.createElement("div");
+        title.className = "song-title";
+        title.textContent = song.title;
+        const diff = document.createElement("div");
+        diff.className = "song-diff";
+        diff.textContent = formatSongDifficulty(song);
+        info.append(title, diff);
+        option.append(checkbox, createSongArtwork(song, getSongBorderClass(song)), info);
+        globalBanEditorGrid.appendChild(option);
+      });
+      if (!filteredSongs.length) {
+        const empty = document.createElement("div");
+        empty.className = "muted small";
+        empty.textContent = "没有匹配的歌曲。";
+        globalBanEditorGrid.appendChild(empty);
+      }
+      updateGlobalBanEditorSummary();
+    }
+
+    function openGlobalBanEditor() {
+      if (!canEditGlobalBan()) return;
+      globalBanDraft = {
+        A: new Set(roomState.songs.filter(song => song.globalA).map(getRandomSongKey)),
+        B: new Set(roomState.songs.filter(song => song.globalB).map(getRandomSongKey))
+      };
+      const optionA = globalBanPlayerSelect.querySelector('option[value="A"]');
+      const optionB = globalBanPlayerSelect.querySelector('option[value="B"]');
+      optionA.textContent = `${getGlobalBanPlayerName("A")}（A）`;
+      optionB.textContent = `${getGlobalBanPlayerName("B")}（B）`;
+      globalBanPlayerSelect.value = "A";
+      globalBanSearchInput.value = "";
+      globalBanEditorModal.classList.remove("hidden");
+      renderGlobalBanEditor();
+    }
+
+    function closeGlobalBanEditor() {
+      globalBanEditorModal.classList.add("hidden");
+      globalBanDraft = null;
+    }
+
+    function saveGlobalBanEditor() {
+      if (!canEditGlobalBan() || !globalBanDraft) {
+        closeGlobalBanEditor();
+        return;
+      }
+      roomState.songs.forEach(song => {
+        const songKey = getRandomSongKey(song);
+        song.globalA = globalBanDraft.A.has(songKey);
+        song.globalB = globalBanDraft.B.has(songKey);
+        if (
+          song.status === "picked" &&
+          ((song.ownerRole === "A" && song.globalA) || (song.ownerRole === "B" && song.globalB))
+        ) {
+          song.status = "available";
+          song.stageMarked = null;
+          song.ownerRole = null;
+        }
+      });
+      roomState.globalBanEditedAt = new Date().toISOString();
+      closeGlobalBanEditor();
+      sendStateFromClient();
+      showMessage(roomMessage, "裁判已更新当前房间的全局 Ban 选曲库。", "success-banner");
+    }
+
+    function renderRandomResults() {
+      const drawnSongs = Array.isArray(roomState.randomDraw) ? roomState.randomDraw : [];
+      const shouldShow = roomState.randomEnabled && drawnSongs.length > 0;
+      randomResultSection.classList.toggle("hidden", !shouldShow);
+      randomDrawGrid.innerHTML = "";
+      if (!shouldShow) return;
+      drawnSongs.forEach((song, index) => {
+        const card = document.createElement("article");
+        card.className = "random-song-card";
+        card.appendChild(createSongArtwork(song, getSongBorderClass(song)));
+        const info = document.createElement("div");
+        const order = document.createElement("div");
+        order.className = "random-index";
+        order.textContent = `随机曲目 ${index + 1}`;
+        const title = document.createElement("div");
+        title.className = "song-title";
+        title.textContent = song.title;
+        const diff = document.createElement("div");
+        diff.className = "song-diff";
+        diff.textContent = formatSongDifficulty(song);
+        info.append(order, title, diff);
+        card.appendChild(info);
+        randomDrawGrid.appendChild(card);
+      });
+    }
+
+    function getRandomSongKey(song) {
+      return String(song?.id || song?.songId || song?.title || "");
+    }
+
+    function applyRandomHighlight() {
+      songGrid.querySelectorAll(".random-highlight").forEach(card => card.classList.remove("random-highlight"));
+      if (!randomHighlightPoolIndexes.length) return;
+      const poolIndex = randomHighlightPoolIndexes[randomHighlightCursor % randomHighlightPoolIndexes.length];
+      const card = songGrid.querySelector(`[data-random-pool-index="${poolIndex}"]`);
+      if (card) card.classList.add("random-highlight");
+    }
+
+    function stopRandomHighlightAnimation() {
+      if (randomHighlightTimer !== null) {
+        clearInterval(randomHighlightTimer);
+        randomHighlightTimer = null;
+      }
+      randomHighlightStage = null;
+      randomHighlightPoolIndexes = [];
+      randomHighlightCursor = 0;
+      songGrid.querySelectorAll(".random-highlight").forEach(card => card.classList.remove("random-highlight"));
+    }
+
+    function syncRandomHighlightAnimation() {
+      if (!roomState || !isRandomStage(roomState.currentStage) || roomState.ended) {
+        stopRandomHighlightAnimation();
+        return;
+      }
+      const drawnKeys = new Set((roomState.randomDraw || []).map(getRandomSongKey));
+      const availableIndexes = (roomState.randomPool || [])
+        .map((song, index) => drawnKeys.has(getRandomSongKey(song)) ? -1 : index)
+        .filter(index => index >= 0);
+      const sameSequence = randomHighlightStage === roomState.currentStage &&
+        availableIndexes.length === randomHighlightPoolIndexes.length &&
+        availableIndexes.every((value, index) => value === randomHighlightPoolIndexes[index]);
+      if (sameSequence && randomHighlightTimer !== null) {
+        applyRandomHighlight();
+        return;
+      }
+      stopRandomHighlightAnimation();
+      if (!availableIndexes.length) return;
+      randomHighlightStage = roomState.currentStage;
+      randomHighlightPoolIndexes = availableIndexes;
+      randomHighlightCursor = Math.floor(secureRandomFraction() * availableIndexes.length);
+      applyRandomHighlight();
+      randomHighlightTimer = setInterval(() => {
+        randomHighlightCursor = (randomHighlightCursor + 1) % randomHighlightPoolIndexes.length;
+        applyRandomHighlight();
+      }, RANDOM_HIGHLIGHT_INTERVAL_MS);
+    }
+
+    function canInteractWithSong(song) {
+      if (!roomState || !roomState.started) return false;
+      if (myRole === "spectator" || myRole === "referee") return false;
+      if (!isMyTurn()) return false;
       const stage = roomState.currentStage;
-      if(stage >= stages.length-1) return false;
-      if(isBanStage(stage)){ if(song.status==="available") return true; return song.status==="banned" && song.stageMarked===stage && song.ownerRole===myRole; }
-      if(isPickStage(stage)){ if(song.status==="banned") return false; if(song.status==="available") return true; return song.status==="picked" && song.stageMarked===stage && song.ownerRole===myRole; }
+      if (stage >= stages.length - 1) return false;
+
+      if (isGlobalStage(stage)) {
+        return true;
+      }
+
+      if (isBanStage(stage)) {
+        if (getGlobalForbiddenType(song)) return false;
+
+        if (song.status === "available") return true;
+
+        return song.status === "banned" &&
+               song.stageMarked === stage &&
+               song.ownerRole === myRole;
+      }
+
+      if (isPickStage(stage)) {
+        if (getGlobalForbiddenType(song)) return false;
+        if (song.status === "banned") return false;
+        if (song.status === "available") return true;
+        return song.status === "picked" &&
+               song.stageMarked === stage &&
+               song.ownerRole === myRole;
+      }
+
       return false;
     }
 
-    function renderRoom(){
-      if(!roomState) return;
-      roleText.textContent = myRole==="spectator"?"观战":myRole==="referee"?"裁判":`玩家 ${myRole}`;
-      presetText.textContent = presetNameMap[roomState.presetKey]||roomState.presetKey;
+    function renderRoom() {
+      if (!roomState) return;
+
+      roleText.textContent = getMyRoleText();
+      presetText.textContent = presetNameMap[roomState.presetKey] || roomState.presetKey;
       refereeSeatText.textContent = "已创建房间";
-      seatAText.textContent = roomState.seats.A ? "已加入" : "未加入";
-      seatBText.textContent = roomState.seats.B ? "已加入" : "未加入";
+      const context = roomState.matchContext;
+      seatAText.textContent = context
+        ? `${context.playerA.nickname} · ${roomState.seats.A ? "已加入" : "未加入"}`
+        : roomState.seats.A ? "已加入" : "未加入";
+      seatBText.textContent = context
+        ? `${context.playerB.nickname} · ${roomState.seats.B ? "已加入" : "未加入"}`
+        : roomState.seats.B ? "已加入" : "未加入";
+      renderRoomMatchContext();
 
       const readyToStart = roomState.seats.A && roomState.seats.B && !roomState.started && !roomState.ended;
-      startBtn.classList.toggle("hidden", !(myRole==="referee" && !roomState.started && !roomState.ended));
-      startBtn.disabled = !readyToStart;
+      const ended = roomState.ended || roomState.currentStage >= stages.length - 1;
 
-      const ended = roomState.ended || roomState.currentStage>=stages.length-1;
-      resetBtn.classList.toggle("hidden", !(ended && myRole==="referee"));
+      resetBtn.classList.toggle("hidden", !(ended && myRole === "referee"));
+      const globalBanEditable = canEditGlobalBan();
+      editGlobalBanBtn.classList.toggle("hidden", !globalBanEditable);
+      if (!globalBanEditable && !globalBanEditorModal.classList.contains("hidden")) closeGlobalBanEditor();
 
-      if(!roomState.started){
+      if (!roomState.started) {
         stageText.textContent = "当前阶段：等待裁判开始";
-        stageTip.textContent = readyToStart ? "两位选手已到齐，裁判可点击开始按钮。" : "等待两位选手进入房间后，由裁判点击开始。";
       } else {
         stageText.textContent = `当前阶段：${stages[roomState.currentStage]}`;
-        const actor = getCurrentActor(roomState.currentStage);
-        stageTip.textContent = myRole==="spectator" || myRole==="referee"
-          ? `当前由玩家 ${actor} 操作。观战人数：${roomState.spectatorCount}/${SPECTATOR_LIMIT}`
-          : ended
-            ? "BP 已结束，等待裁判重置。"
-            : isMyTurn()
-              ? "现在轮到你操作。"
-              : `现在轮到玩家 ${actor} 操作，你当前不能点击歌曲。`;
       }
 
-      confirmBtn.disabled = !roomState.started || !isMyTurn() || ended;
-      confirmBtn.textContent = ended ? "BP已结束" : "确认当前阶段";
+      if (!roomState.started) {
+        confirmBtn.disabled = !(myRole === "referee" && readyToStart);
+        confirmBtn.textContent = "确认当前阶段（开始 BP）";
+      } else {
+        confirmBtn.disabled = !isMyTurn() || ended;
+        confirmBtn.textContent = ended
+          ? "BP已结束"
+          : roomState.currentStage === 7
+            ? "确认抽取第 1 首（玩家 B）"
+            : roomState.currentStage === 8
+              ? "确认抽取第 2 首（玩家 A）"
+              : "确认当前阶段";
+      }
 
-      renderMiniList(banList, roomState.songs.filter(song=>song.status==="banned"));
-      renderMiniList(pickAList, roomState.songs.filter(song=>song.status==="picked" && song.ownerRole==="A"));
-      renderMiniList(pickBList, roomState.songs.filter(song=>song.status==="picked" && song.ownerRole==="B"));
+      renderMiniList(banList, roomState.songs.filter(song => song.status === "banned"));
+      renderMiniList(pickAList, roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "A"));
+      renderMiniList(pickBList, roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "B"));
+      renderRandomResults();
 
       songGrid.innerHTML = "";
-      roomState.songs.forEach((song,index)=>{
-        const div=document.createElement("div"); div.className="song"; const clickable=canInteractWithSong(song);
-        if(!clickable){ if((roomState.started && isPickStage(roomState.currentStage) && song.status==="banned") || myRole==="spectator" || myRole==="referee" || !isMyTurn()) div.classList.add("disabled"); else div.classList.add("locked"); }
-        let markHtml=""; if(song.status==="banned") markHtml='<div class="ban-mark">✕</div>'; else if(song.status==="picked") markHtml='<div class="pick-mark">✓</div>';
-        div.innerHTML=`<img src="${song.cover}" alt="${song.title}"><div class="song-title">${song.title}</div><div class="song-diff">${song.difficulty}</div>${markHtml}`;
-        div.onclick=()=>{ if(!clickable) return; handleSongClick(index); };
+      const showingRandomPool = roomState.started && roomState.currentStage >= 7;
+      const displayedSongs = showingRandomPool ? (roomState.randomPool || []) : roomState.songs;
+      const drawnRandomKeys = (roomState.randomDraw || []).map(getRandomSongKey);
+      songPoolTitle.textContent = showingRandomPool
+        ? `随机曲池（${displayedSongs.length} 首）`
+        : "自选曲池";
+
+      displayedSongs.forEach((song, index) => {
+        const div = document.createElement("div");
+        div.className = "song";
+        if (showingRandomPool) {
+          div.classList.add("random-pool");
+          div.dataset.randomPoolIndex = String(index);
+          const drawnIndex = drawnRandomKeys.indexOf(getRandomSongKey(song));
+          if (drawnIndex >= 0) div.classList.add("random-drawn");
+          div.appendChild(createSongArtwork(song, getSongBorderClass(song)));
+          const title = document.createElement("div");
+          title.className = "song-title";
+          title.textContent = song.title;
+          const diff = document.createElement("div");
+          diff.className = "song-diff";
+          diff.textContent = formatSongDifficulty(song);
+          div.append(title, diff);
+          if (drawnIndex >= 0) {
+            const mark = document.createElement("div");
+            mark.className = "random-drawn-mark";
+            mark.textContent = `第 ${drawnIndex + 1} 首`;
+            div.appendChild(mark);
+          }
+          songGrid.appendChild(div);
+          return;
+        }
+        const clickable = canInteractWithSong(song);
+        const isPickedSong = song.status === "picked";
+        const globalForbiddenClass = getGlobalForbiddenType(song);
+
+        if (globalForbiddenClass && !isPickedSong) {
+          div.classList.add(globalForbiddenClass);
+        } else if (!clickable && !isPickedSong) {
+          if ((roomState.started && isPickStage(roomState.currentStage) && song.status === "banned") || myRole === "spectator" || myRole === "referee" || !isMyTurn()) {
+            div.classList.add("disabled");
+          } else {
+            div.classList.add("locked");
+          }
+        }
+
+        let markType = "";
+        if (isGlobalStage(roomState.currentStage)) {
+          const showGlobalPickMark =
+            (roomState.currentStage === 0 && song.globalA) ||
+            (roomState.currentStage === 1 && song.globalB);
+          if (showGlobalPickMark) {
+            markType = "pick";
+          }
+        } else if (song.status === "banned") {
+          markType = "ban";
+        } else if (song.status === "picked") {
+          markType = "pick";
+        }
+        div.appendChild(createSongArtwork(song, getSongBorderClass(song)));
+        const title = document.createElement("div");
+        title.className = "song-title";
+        title.textContent = song.title;
+        const diff = document.createElement("div");
+        diff.className = "song-diff";
+        diff.textContent = formatSongDifficulty(song);
+        div.append(title, diff);
+        if (markType) {
+          const mark = document.createElement("div");
+          mark.className = markType === "ban" ? "ban-mark" : "pick-mark";
+          mark.textContent = markType === "ban" ? "✕" : "✓";
+          div.appendChild(mark);
+        }
+
+        div.onclick = () => {
+          if (!clickable) return;
+          handleSongClick(index);
+        };
+
         songGrid.appendChild(div);
       });
+      syncRandomHighlightAnimation();
     }
 
-    function handleSongClick(index){
-      const stage = roomState.currentStage; const song = roomState.songs[index];
-      if(isBanStage(stage)){
-        if(song.status==="available"){ song.status="banned"; song.stageMarked=stage; song.ownerRole=myRole; }
-        else if(song.status==="banned" && song.stageMarked===stage && song.ownerRole===myRole){ song.status="available"; song.stageMarked=null; song.ownerRole=null; }
-        else return;
-      } else if(isPickStage(stage)){
-        if(song.status==="banned") return;
-        if(song.status==="available"){
-          roomState.songs.forEach(item=>{ if(item.status==="picked" && item.stageMarked===stage && item.ownerRole===myRole){ item.status="available"; item.stageMarked=null; item.ownerRole=null; } });
-          song.status="picked"; song.stageMarked=stage; song.ownerRole=myRole;
-        } else if(song.status==="picked" && song.stageMarked===stage && song.ownerRole===myRole){ song.status="available"; song.stageMarked=null; song.ownerRole=null; }
-        else return;
+    function handleSongClick(index) {
+      const stage = roomState.currentStage;
+      const song = roomState.songs[index];
+
+      if (isGlobalStage(stage)) {
+        if (stage === 0) {
+          song.globalA = !song.globalA;
+        } else if (stage === 1) {
+          song.globalB = !song.globalB;
+        }
+        sendStateFromClient();
+        return;
       }
+
+      if (isBanStage(stage)) {
+        if (getGlobalForbiddenType(song)) return;
+
+        if (
+          song.status === "banned" &&
+          song.stageMarked === stage &&
+          song.ownerRole === myRole
+        ) {
+          song.status = "available";
+          song.stageMarked = null;
+          song.ownerRole = null;
+          song.markOrder = null;
+          sendStateFromClient();
+          return;
+        }
+
+        if (song.status !== "available") {
+          return;
+        }
+
+        if (stage === 2 || stage === 4) {
+          roomState.songs.forEach(item => {
+            if (
+              item.status === "banned" &&
+              item.stageMarked === stage &&
+              item.ownerRole === myRole
+            ) {
+              item.status = "available";
+              item.stageMarked = null;
+              item.ownerRole = null;
+              item.markOrder = null;
+            }
+          });
+
+          song.status = "banned";
+          song.stageMarked = stage;
+          song.ownerRole = myRole;
+          song.markOrder = nextActionOrder();
+          sendStateFromClient();
+          return;
+        }
+
+        if (stage === 3) {
+          const currentBans = roomState.songs.filter(item =>
+            item.status === "banned" &&
+            item.stageMarked === stage &&
+            item.ownerRole === myRole
+          );
+
+          if (currentBans.length >= 2) {
+            let oldest = currentBans[0];
+            for (const item of currentBans) {
+              if ((item.markOrder || Infinity) < (oldest.markOrder || Infinity)) {
+                oldest = item;
+              }
+            }
+
+            oldest.status = "available";
+            oldest.stageMarked = null;
+            oldest.ownerRole = null;
+            oldest.markOrder = null;
+          }
+
+          song.status = "banned";
+          song.stageMarked = stage;
+          song.ownerRole = myRole;
+          song.markOrder = nextActionOrder();
+          sendStateFromClient();
+          return;
+        }
+      }
+
+      if (isPickStage(stage)) {
+        if (getGlobalForbiddenType(song)) return;
+        if (song.status === "banned") return;
+
+        if (song.status === "available") {
+          roomState.songs.forEach(item => {
+            if (
+              item.status === "picked" &&
+              item.stageMarked === stage &&
+              item.ownerRole === myRole
+            ) {
+              item.status = "available";
+              item.stageMarked = null;
+              item.ownerRole = null;
+            }
+          });
+
+          song.status = "picked";
+          song.stageMarked = stage;
+          song.ownerRole = myRole;
+        } else if (
+          song.status === "picked" &&
+          song.stageMarked === stage &&
+          song.ownerRole === myRole
+        ) {
+          song.status = "available";
+          song.stageMarked = null;
+          song.ownerRole = null;
+        } else {
+          return;
+        }
+
+        sendStateFromClient();
+      }
+    }
+
+    function validateBeforeConfirm() {
+      if (isBanStage(roomState.currentStage)) {
+        const limitCount = roomState.currentStage === 3 ? 2 : 1;
+        const currentBanCount = roomState.songs.filter(song =>
+          song.status === "banned" &&
+          song.stageMarked === roomState.currentStage &&
+          song.ownerRole === myRole
+        ).length;
+
+        if (currentBanCount > limitCount) {
+          alert(`当前阶段最多只能禁用 ${limitCount} 首曲目。`);
+          return false;
+        }
+      }
+
+      if (isPickStage(roomState.currentStage)) {
+        const hasPick = roomState.songs.some(song =>
+          song.status === "picked" &&
+          song.stageMarked === roomState.currentStage &&
+          song.ownerRole === myRole
+        );
+
+        if (!hasPick) {
+          alert("当前是 Pick 阶段，必须先选 1 首歌才能确认。");
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    function secureRandomFraction() {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const value = new Uint32Array(1);
+        window.crypto.getRandomValues(value);
+        return value[0] / 4294967296;
+      }
+      return Math.random();
+    }
+
+    function drawOneRandomSong() {
+      const drawnKeys = new Set((roomState.randomDraw || []).map(getRandomSongKey));
+      const availableSongs = (roomState.randomPool || []).filter(song => !drawnKeys.has(getRandomSongKey(song)));
+      const [drawnSong] = SongCore.sampleWithoutReplacement(availableSongs, 1, secureRandomFraction);
+      if (!drawnSong) throw new Error("随机曲池中没有可继续抽取的曲目。");
+      roomState.randomDraw = [...(roomState.randomDraw || []), cloneData(drawnSong)];
+      return drawnSong;
+    }
+
+    function summarizeSong(song) {
+      return {
+        id: song.id,
+        title: song.title,
+        difficulty: song.difficulty,
+        level: song.level || "",
+        chartType: getSongChartType(song),
+        cover: song.cover || ""
+      };
+    }
+
+    async function persistBpResult() {
+      if (!isHost || !roomState.matchContext?.matchId) return;
+      try {
+        const tournamentState = await TournamentStore.loadState();
+        const match = TournamentStore.findMatch(tournamentState, roomState.matchContext.matchId);
+        if (!match) return;
+        match.bpResult = {
+          completedAt: new Date().toISOString(),
+          presetKey: roomState.presetKey,
+          playerAId: roomState.matchContext.playerA.id,
+          playerBId: roomState.matchContext.playerB.id,
+          globalA: roomState.songs.filter(song => song.globalA).map(summarizeSong),
+          globalB: roomState.songs.filter(song => song.globalB).map(summarizeSong),
+          bans: roomState.songs.filter(song => song.status === "banned").map(song => ({
+            ...summarizeSong(song),
+            ownerRole: song.ownerRole,
+            stageMarked: song.stageMarked
+          })),
+          picks: {
+            A: roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "A").map(summarizeSong),
+            B: roomState.songs.filter(song => song.status === "picked" && song.ownerRole === "B").map(summarizeSong)
+          },
+          randomDraw: (roomState.randomDraw || []).map(summarizeSong)
+        };
+        await TournamentStore.saveState(tournamentState);
+      } catch (error) {
+        console.warn("Unable to persist BP result to tournament data.", error);
+      }
+    }
+
+    async function confirmStage() {
+      if (!roomState) return;
+
+      if (!roomState.started) {
+        if (myRole !== "referee" || !roomState.seats.A || !roomState.seats.B) return;
+        roomState.started = true;
+        roomState.currentStage = roomState.automaticGlobalBan ? 2 : 0;
+        roomState.ended = false;
+        sendStateFromClient();
+        return;
+      }
+
+      if (!isMyTurn()) return;
+      if (isRandomStage(roomState.currentStage)) {
+        confirmBtn.disabled = true;
+        stopRandomHighlightAnimation();
+        try {
+          drawOneRandomSong();
+        } catch (error) {
+          alert(error.message || String(error));
+          renderRoom();
+          return;
+        }
+        roomState.currentStage = Math.min(roomState.currentStage + 1, stages.length - 1);
+        roomState.ended = roomState.currentStage >= stages.length - 1;
+        sendStateFromClient();
+        if (roomState.ended) await persistBpResult();
+        return;
+      }
+      if (!validateBeforeConfirm()) return;
+      const nextStage = roomState.currentStage === 6 && !roomState.randomEnabled
+        ? stages.length - 1
+        : roomState.currentStage + 1;
+      roomState.currentStage = Math.min(nextStage, stages.length - 1);
+      roomState.ended = roomState.currentStage >= stages.length - 1;
+      sendStateFromClient();
+      if (roomState.ended) await persistBpResult();
+    }
+
+    function resetMatch() {
+      if (!roomState || myRole !== "referee") return;
+      const ok = confirm("确定要重置本局 BP 吗？\n\n这会保留房间与座位，只重置阶段和歌曲状态。");
+      if (!ok) return;
+      const presetKey = roomState.presetKey;
+      const matchContext = roomState.matchContext || null;
+      const globalAIds = new Set(roomState.songs.filter(song => song.globalA).map(getRandomSongKey));
+      const globalBIds = new Set(roomState.songs.filter(song => song.globalB).map(getRandomSongKey));
+      roomState = createInitialState(presetKey);
+      roomState.matchContext = matchContext;
+      roomState.songs.forEach(song => {
+        const songKey = getRandomSongKey(song);
+        song.globalA = globalAIds.has(songKey);
+        song.globalB = globalBIds.has(songKey);
+      });
+      roomState.seats.A = true;
+      roomState.seats.B = true;
       sendStateFromClient();
     }
 
-    function validateBeforeConfirm(){
-      if(isPickStage(roomState.currentStage)){
-        const hasPick = roomState.songs.some(song=>song.status==="picked" && song.stageMarked===roomState.currentStage && song.ownerRole===myRole);
-        if(!hasPick){ alert("当前是 Pick 阶段，必须先选 1 首歌才能确认。\n\n如果你想换歌，直接点另一首即可自动替换。"); return false; }
+    function leaveRoom() {
+      if (!confirm("确定要离开房间吗？")) return;
+      clearJoinConnectionTimeout();
+      stopRandomHighlightAnimation();
+      closeGlobalBanEditor();
+      joinAttemptSerial += 1;
+      if (!isHost && hostConn && hostConn.open) {
+        hostConn.send({ type: "leave-room" });
+        hostConn.close();
       }
-      return true;
+      if (isHost) {
+        hostConnections.forEach(conn => { try { conn.close(); } catch (e) {} });
+        try { peer.destroy(); } catch (e) {}
+      } else if (peer) {
+        try { peer.destroy(); } catch (e) {}
+      }
+      peer = null;
+      hostConnections = [];
+      hostConn = null;
+      joinWelcomeReceived = false;
+      roomPeerId = "";
+      myRole = "";
+      isHost = false;
+      roomState = null;
+      joinPlayerIdentityField.classList.add("hidden");
+      joinPlayerSelect.innerHTML = '<option value="">昵称</option>';
+      joinRoomBtn.disabled = false;
+      joinRoomBtn.textContent = "连接房间";
+      roomPage.classList.add("hidden");
+      lobbyPage.classList.remove("hidden");
+      clearMessage(roomMessage);
+      updateConnectionText("未连接");
     }
-    function confirmStage(){ if(!roomState || !roomState.started || !isMyTurn()) return; if(!validateBeforeConfirm()) return; roomState.currentStage=Math.min(roomState.currentStage+1, stages.length-1); roomState.ended = roomState.currentStage>=stages.length-1; sendStateFromClient(); }
-    function startMatch(){ if(myRole!=="referee" || !roomState.seats.A || !roomState.seats.B) return; roomState.started = true; roomState.currentStage = 0; roomState.ended = false; sendStateFromClient(); }
-    function resetMatch(){ if(!roomState || myRole!=="referee") return; const ok=confirm("确定要重置本局 BP 吗？\n\n这会保留房间与座位，只重置阶段和歌曲状态。"); if(!ok) return; const presetKey=roomState.presetKey; roomState=createInitialState(presetKey); roomState.seats.A=true; roomState.seats.B=true; sendStateFromClient(); }
 
-    function leaveRoom(){
-      if(!confirm("确定要离开房间吗？")) return;
-      if(!isHost && hostConn && hostConn.open){ hostConn.send({type:"leave-room"}); hostConn.close(); }
-      if(isHost){ hostConnections.forEach(conn=>{ try{ conn.close(); }catch(e){} }); try{ peer.destroy(); }catch(e){} }
-      else if(peer){ try{ peer.destroy(); }catch(e){} }
-      peer=null; hostConnections=[]; hostConn=null; roomPeerId=""; myRole=""; isHost=false; roomState=null;
-      roomPage.classList.add("hidden"); lobbyPage.classList.remove("hidden"); clearMessage(roomMessage); updateConnectionText("未连接");
+    function updateCreateButtonState() {
+      const firstId = createPlayerOneSelect.value;
+      const secondId = createPlayerTwoSelect.value;
+      createRoomBtn.disabled = !tournamentDataReady || !presetSelect.value || !firstId || !secondId || firstId === secondId;
     }
 
-    presetSelect.addEventListener("change", ()=>{ createRoomBtn.disabled = !presetSelect.value; });
-    createRoomBtn.onclick=()=>{ clearMessage(createMessage); clearMessage(joinMessage); roomInfoBox.classList.add("hidden"); if(!presetSelect.value){ showMessage(createMessage, "请先选择组别。", "error-banner"); return; } createHostPeer(); };
-    joinRoomBtn.onclick=()=>{ clearMessage(joinMessage); clearMessage(createMessage); joinHostPeer(); };
-    confirmBtn.onclick=confirmStage;
-    startBtn.onclick=startMatch;
-    resetBtn.onclick=resetMatch;
-    leaveRoomBtn.onclick=leaveRoom;
-    backToLobbyBtn.onclick=()=>{ roomPage.classList.add("hidden"); lobbyPage.classList.remove("hidden"); };
+    presetSelect.addEventListener("change", populateCreatePlayerSelects);
+    presetSelect.addEventListener("input", populateCreatePlayerSelects);
+    [createPlayerOneSelect, createPlayerTwoSelect].forEach(select => {
+      select.addEventListener("change", () => {
+        updateCreatePairHint();
+        updateLobbyPairPreview();
+        updateCreateButtonState();
+      });
+    });
+    joinRoleSelect.addEventListener("change", () => {
+      if (!joinWelcomeReceived) return;
+      populateJoinPlayerOptions(roomState);
+      joinRoomBtn.disabled = joinRoleSelect.value === "player" && Boolean(roomState?.matchContext) && !joinPlayerSelect.value;
+      joinRoomBtn.textContent = joinRoleSelect.value === "player" ? "加入" : "加入观战";
+    });
+    joinPlayerSelect.addEventListener("change", () => {
+      if (!joinWelcomeReceived || joinRoleSelect.value !== "player") return;
+      clearMessage(joinMessage);
+      joinRoomBtn.disabled = !joinPlayerSelect.value;
+    });
+    updateCreateButtonState();
+    loadPendingMatchContext();
+
+    createRoomBtn.onclick = async () => {
+      clearMessage(createMessage);
+      clearMessage(joinMessage);
+      roomInfoBox.classList.add("hidden");
+      try {
+        pendingTournamentState = await TournamentStore.loadState();
+        pendingSongLibrary = Array.isArray(pendingTournamentState.songs) ? pendingTournamentState.songs : [];
+      } catch (error) {
+        showMessage(createMessage, `无法读取最新赛事数据：${error.message || error}`, "error-banner");
+        return;
+      }
+      if (!presetSelect.value) {
+        showMessage(createMessage, "请先选择组别。", "error-banner");
+        return;
+      }
+      const { first, second } = getSelectedRoomPlayers();
+      if (!first || !second || first.id === second.id) {
+        showMessage(createMessage, "请选择两名不同的同组选手。", "error-banner");
+        return;
+      }
+      if (pendingSongLibrary.length) {
+        const group = groupFromPreset(presetSelect.value);
+        const randomCount = SongCore.getSongsFor(pendingSongLibrary, group, "random").length;
+        if (randomCount !== 10) {
+          showMessage(createMessage, `${group}组随机池当前为 ${randomCount}/10 首。请先在曲库管理中补齐到 10 首。`, "error-banner");
+          return;
+        }
+      }
+      try {
+        const linkedMatch = prepareSelectedMatchContext();
+        if (linkedMatch && pendingTournamentState) {
+          pendingTournamentState.activeMatchId = linkedMatch.id;
+          pendingTournamentState = await TournamentStore.saveState(pendingTournamentState);
+        }
+        renderLobbyMatchContext();
+      } catch (error) {
+        showMessage(createMessage, error.message || String(error), "error-banner");
+        return;
+      }
+      createHostPeer();
+    };
+
+    joinRoomBtn.onclick = () => {
+      clearMessage(joinMessage);
+      clearMessage(createMessage);
+      if (hostConn?.open && joinWelcomeReceived) requestJoinFromClient();
+      else joinHostPeer();
+    };
+
+    editGlobalBanBtn.onclick = openGlobalBanEditor;
+    closeGlobalBanEditorBtn.onclick = closeGlobalBanEditor;
+    cancelGlobalBanEditorBtn.onclick = closeGlobalBanEditor;
+    globalBanPlayerSelect.onchange = renderGlobalBanEditor;
+    globalBanSearchInput.oninput = renderGlobalBanEditor;
+    clearGlobalBanPlayerBtn.onclick = () => {
+      if (!globalBanDraft) return;
+      const role = globalBanPlayerSelect.value === "B" ? "B" : "A";
+      globalBanDraft[role].clear();
+      renderGlobalBanEditor();
+    };
+    saveGlobalBanEditorBtn.onclick = saveGlobalBanEditor;
+    globalBanEditorModal.onclick = event => {
+      if (event.target === globalBanEditorModal) closeGlobalBanEditor();
+    };
+
+    confirmBtn.onclick = confirmStage;
+    resetBtn.onclick = resetMatch;
+    leaveRoomBtn.onclick = leaveRoom;
+    backToLobbyBtn.onclick = () => {
+      roomPage.classList.add("hidden");
+      lobbyPage.classList.remove("hidden");
+    };
   </script>
 </body>
 </html>

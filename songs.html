@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>曲库管理 - Music BP Tool</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <script src="referee-auth.js" data-require-auth="true"></script>
+  <link rel="stylesheet" href="tournament.css" />
+  <link rel="stylesheet" href="songs.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>曲库管理</h1>
+        <p>批量导入曲目、封面、所属组别和曲池。每首曲目可以同时属于多个组别与曲池。</p>
+      </div>
+      <div class="top-actions">
+        <a class="button secondary" href="referee.html">裁判工作台</a>
+        <a class="button secondary" href="tournament.html">赛事控制台</a>
+        <button class="secondary" id="downloadTemplateBtn">下载 CSV 模板</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><span class="muted small">曲目总数</span><strong id="songCount">0</strong></div>
+      <div class="stat"><span class="muted small">自选池条目</span><strong id="selfCount">0</strong></div>
+      <div class="stat"><span class="muted small">随机池条目</span><strong id="randomCount">0</strong></div>
+      <div class="stat"><span class="muted small">随机池达标组</span><strong id="readyGroupCount">0/3</strong></div>
+    </section>
+
+    <section class="card" style="margin-bottom:18px;">
+      <h2>各组曲池状态</h2>
+      <div class="pool-stats" id="poolStats"></div>
+    </section>
+
+    <div class="layout">
+      <div class="column">
+        <section class="card sync-card">
+          <div class="section-heading">
+            <div>
+              <h2>1. 从 Diving-Fish 同步</h2>
+              <p class="muted small">读取公开曲库并按谱面导入。再次同步只更新官方资料，保留已有赛事分组、曲池和手动封面。</p>
+            </div>
+            <span class="source-badge">公开接口 · 无需 Token</span>
+          </div>
+          <div class="field-grid compact-grid">
+            <div class="field" style="grid-column:1 / -1;">
+              <label>载入难度</label>
+              <div class="choice-row">
+                <label class="choice"><input type="checkbox" name="dfDifficulty" value="2" checked />Expert</label>
+                <label class="choice"><input type="checkbox" name="dfDifficulty" value="3" checked />Master</label>
+                <label class="choice"><input type="checkbox" name="dfDifficulty" value="4" checked />Re:Master</label>
+              </div>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="syncDivingFishBtn">获取曲库并预览</button>
+            <span class="muted small inline-status" id="dfLastSync">尚未同步</span>
+          </div>
+          <div id="dfMessage" class="message hidden"></div>
+
+          <div id="dfCatalogPanel" class="catalog-panel hidden">
+            <div class="catalog-summary" id="dfCatalogSummary"></div>
+            <div class="toolbar catalog-toolbar">
+              <div class="field grow"><label for="dfSearchInput">搜索曲名 / 曲师 / ID</label><input id="dfSearchInput" placeholder="输入关键词筛选" /></div>
+              <div class="field"><label for="dfTypeFilter">谱面类型</label><select id="dfTypeFilter"><option value="all">全部</option><option value="DX">DX</option><option value="SD">SD</option></select></div>
+              <div class="field"><label for="dfDifficultyFilter">难度</label><select id="dfDifficultyFilter"><option value="all">全部</option><option value="Expert">Expert</option><option value="Master">Master</option><option value="Re:Master">Re:Master</option></select></div>
+              <div class="field"><label for="dfImportStatusFilter">导入状态</label><select id="dfImportStatusFilter"><option value="all">全部</option><option value="new">未导入</option><option value="existing">已导入</option></select></div>
+            </div>
+            <div class="selection-bar">
+              <div class="actions no-margin">
+                <button class="secondary small" id="dfSelectFilteredBtn">选择筛选结果</button>
+                <button class="secondary small" id="dfClearSelectionBtn">清空选择</button>
+              </div>
+              <strong id="dfSelectedCount">已选择 0 首谱面</strong>
+            </div>
+            <div class="table-wrap catalog-table-wrap">
+              <table class="catalog-table">
+                <thead><tr><th>选择</th><th>曲名 / ID</th><th>谱面</th><th>等级 / 定数</th><th>曲师 / 版本</th><th>状态</th></tr></thead>
+                <tbody id="dfPreviewBody"></tbody>
+              </table>
+            </div>
+            <p class="muted small" id="dfRenderNote"></p>
+
+            <div class="assignment-box">
+              <h3>将选中谱面加入</h3>
+              <div class="assignment-grid">
+                <div class="field">
+                  <label>所属组别（可多选）</label>
+                  <div class="choice-row">
+                    <label class="choice"><input type="checkbox" name="dfGroup" value="A" />A组</label>
+                    <label class="choice"><input type="checkbox" name="dfGroup" value="B" />B组</label>
+                    <label class="choice"><input type="checkbox" name="dfGroup" value="C" />C组</label>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>所属曲池（可多选）</label>
+                  <div class="choice-row">
+                    <label class="choice"><input type="checkbox" name="dfPool" value="self" />自选池</label>
+                    <label class="choice"><input type="checkbox" name="dfPool" value="random" />随机池</label>
+                  </div>
+                </div>
+              </div>
+              <p class="muted small">导入已存在的谱面时，所选组别和曲池会追加到原有设置；不勾选则仅刷新官方资料。</p>
+              <div class="actions"><button id="importDivingFishBtn">导入选中谱面</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>2. 通过 CSV 导入</h2>
+          <p class="muted small">必填列：song_id、title、groups、pools、difficulty、level。多选项使用 <code>|</code> 分隔；cover 可选。</p>
+          <div class="field-grid">
+            <div class="field">
+              <label for="songCsvInput">曲目 CSV</label>
+              <input id="songCsvInput" type="file" accept=".csv,text/csv" />
+            </div>
+            <div class="field">
+              <label for="coverFolderInput">封面文件夹</label>
+              <input id="coverFolderInput" type="file" accept="image/*" webkitdirectory directory multiple />
+            </div>
+            <div class="field">
+              <label for="songImportMode">导入方式</label>
+              <select id="songImportMode">
+                <option value="replace">替换当前曲库</option>
+                <option value="merge">按 song_id 合并</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="importSongsBtn">导入并检查</button>
+            <button class="secondary" id="exportSongsBtn">导出当前曲库</button>
+          </div>
+          <div id="importMessage" class="message hidden"></div>
+        </section>
+
+        <section class="card">
+          <h2>3. 曲目列表</h2>
+          <div class="toolbar">
+            <div class="field grow"><label for="filterSearch">搜索</label><input id="filterSearch" placeholder="曲名或编号" /></div>
+            <div class="field"><label for="filterGroup">组别</label><select id="filterGroup"><option value="all">全部</option><option value="A">A组</option><option value="B">B组</option><option value="C">C组</option></select></div>
+            <div class="field"><label for="filterPool">曲池</label><select id="filterPool"><option value="all">全部</option><option value="self">自选池</option><option value="random">随机池</option></select></div>
+            <div class="field"><label for="filterDifficulty">难度</label><select id="filterDifficulty"><option value="all">全部</option><option value="Expert">Expert</option><option value="Master">Master</option><option value="Re:Master">Re:Master</option></select></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>封面</th><th>编号 / 曲名</th><th>组别</th><th>曲池</th><th>难度</th><th>操作</th></tr></thead>
+              <tbody id="songTableBody"></tbody>
+            </table>
+          </div>
+          <p class="muted small" id="songRenderNote"></p>
+        </section>
+      </div>
+
+      <aside class="column">
+        <section class="card">
+          <h2 id="songEditorTitle">手动添加曲目</h2>
+          <form id="songForm">
+            <div class="field-grid">
+              <div class="field"><label for="songIdInput">曲目编号</label><input id="songIdInput" required /></div>
+              <div class="field"><label for="songTitleInput">曲名</label><input id="songTitleInput" required /></div>
+              <div class="field"><label for="difficultyInput">难度</label><select id="difficultyInput"><option value="Expert">Expert</option><option value="Master" selected>Master</option><option value="Re:Master">Re:Master</option></select></div>
+              <div class="field"><label for="levelInput">具体等级</label><input id="levelInput" required placeholder="例如 13+" /></div>
+              <div class="field" style="grid-column:1 / -1;">
+                <label>所属组别（可多选）</label>
+                <div class="choice-row">
+                  <label class="choice"><input type="checkbox" name="songGroup" value="A" />A组</label>
+                  <label class="choice"><input type="checkbox" name="songGroup" value="B" />B组</label>
+                  <label class="choice"><input type="checkbox" name="songGroup" value="C" />C组</label>
+                </div>
+              </div>
+              <div class="field" style="grid-column:1 / -1;">
+                <label>所属曲池（可多选）</label>
+                <div class="choice-row">
+                  <label class="choice"><input type="checkbox" name="songPool" value="self" />自选池</label>
+                  <label class="choice"><input type="checkbox" name="songPool" value="random" />随机池</label>
+                </div>
+              </div>
+              <div class="field" style="grid-column:1 / -1;"><label for="singleCoverInput">封面（可选）</label><input id="singleCoverInput" type="file" accept="image/*" /></div>
+            </div>
+            <div class="actions">
+              <button type="submit">保存曲目</button>
+              <button type="button" class="secondary hidden" id="cancelSongEditBtn">取消编辑</button>
+            </div>
+          </form>
+          <div id="editorMessage" class="message hidden"></div>
+        </section>
+
+        <section class="card">
+          <h2>导入规则</h2>
+          <div class="note small">
+            <p style="margin-top:0;"><b>Diving-Fish：</b>以谱面 ID 建立独立条目；同步不会清空赛事分组与曲池。</p>
+            <p><b>groups：</b>A、B、C，可写为 <code>A|B</code>。</p>
+            <p><b>pools：</b><code>self</code> 为自选池，<code>random</code> 为随机池，可写为 <code>self|random</code>。</p>
+            <p><b>difficulty：</b>Expert、Master、Re:Master。</p>
+            <p style="margin-bottom:0;">每组随机池目标为 10 首；数量不等于 10 时会提示，但仍允许继续编辑。</p>
+          </div>
+          <p class="muted small" id="saveStatus" style="margin:12px 0 0;">等待载入数据……</p>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="tournament-store.js"></script>
+  <script src="tournament-core.js"></script>
+  <script src="song-core.js"></script>
+  <script src="songs.js"></script>
+</body>
+</html>

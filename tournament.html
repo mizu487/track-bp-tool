@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>赛事控制台 - Music BP Tool</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <script src="referee-auth.js" data-require-auth="true"></script>
+  <link rel="stylesheet" href="tournament.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>赛事控制台</h1>
+        <p>管理选手名单、头像和单败淘汰赛程。数据自动保存在本机浏览器中。</p>
+      </div>
+      <div class="top-actions">
+        <a class="button secondary" href="referee.html">裁判工作台</a>
+        <a class="button secondary" href="songs.html">曲库管理</a>
+        <button class="secondary" id="downloadTemplateBtn">下载 CSV 模板</button>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat"><span class="muted small">选手总数</span><strong id="playerCount">0</strong></div>
+      <div class="stat"><span class="muted small">已建组别</span><strong id="bracketCount">0</strong></div>
+      <div class="stat"><span class="muted small">已完成场次</span><strong id="completedCount">0</strong></div>
+      <div class="stat"><span class="muted small">当前场次</span><strong id="activeMatchLabel">—</strong></div>
+    </section>
+
+    <div class="layout">
+      <div class="column">
+        <section class="card">
+          <h2>1. 快捷导入选手</h2>
+          <p class="muted small">CSV 必填列：player_id、nickname、group；avatar 和 seed 可选。头像文件名应与 avatar 列完全一致。</p>
+          <div class="field-grid">
+            <div class="field">
+              <label for="csvFileInput">选手 CSV</label>
+              <input id="csvFileInput" type="file" accept=".csv,text/csv" />
+            </div>
+            <div class="field">
+              <label for="avatarFolderInput">头像文件夹</label>
+              <input id="avatarFolderInput" type="file" accept="image/*" webkitdirectory directory multiple />
+            </div>
+            <div class="field">
+              <label for="importModeSelect">导入方式</label>
+              <select id="importModeSelect">
+                <option value="replace">替换当前选手库</option>
+                <option value="merge">按 player_id 合并</option>
+              </select>
+            </div>
+          </div>
+          <div class="actions">
+            <button id="importPlayersBtn">导入并检查</button>
+            <button class="secondary" id="exportPlayersBtn">导出当前名单</button>
+          </div>
+          <div id="importMessage" class="message hidden"></div>
+        </section>
+
+        <section class="card">
+          <h2>2. 选手管理</h2>
+          <div class="toolbar">
+            <div class="field">
+              <label for="playerGroupFilter">筛选组别</label>
+              <select id="playerGroupFilter">
+                <option value="all">全部</option>
+                <option value="A">A组</option>
+                <option value="B">B组</option>
+                <option value="C">C组</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>头像</th><th>编号</th><th>昵称</th><th>组别</th><th>种子</th><th>操作</th></tr>
+              </thead>
+              <tbody id="playerTableBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>3. 单败淘汰赛程</h2>
+          <div class="toolbar">
+            <div class="field">
+              <label for="bracketGroupSelect">组别</label>
+              <select id="bracketGroupSelect">
+                <option value="A">A组</option>
+                <option value="B">B组</option>
+                <option value="C">C组</option>
+              </select>
+            </div>
+            <button id="generateBracketBtn">生成 / 重建赛程</button>
+            <button class="danger" id="clearBracketBtn">清除此组赛程</button>
+          </div>
+          <div class="note small">生成时按 seed 从小到大排列；未填写 seed 时沿用 CSV 导入顺序。人数不是 2 的幂时，高顺位选手自动轮空。</div>
+          <div id="bracketMessage" class="message hidden"></div>
+          <div class="bracket-wrap" style="margin-top:16px;">
+            <div class="bracket" id="bracketBoard"></div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="column">
+        <section class="card">
+          <h2 id="editorTitle">手动添加选手</h2>
+          <form id="playerForm">
+            <div class="field-grid">
+              <div class="field">
+                <label for="playerIdInput">选手编号</label>
+                <input id="playerIdInput" required placeholder="例如 001" />
+              </div>
+              <div class="field">
+                <label for="nicknameInput">昵称</label>
+                <input id="nicknameInput" required />
+              </div>
+              <div class="field">
+                <label for="groupInput">组别</label>
+                <select id="groupInput">
+                  <option value="A">A组</option>
+                  <option value="B">B组</option>
+                  <option value="C">C组</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="seedInput">种子顺位（可选）</label>
+                <input id="seedInput" type="number" min="1" step="1" />
+              </div>
+              <div class="field" style="grid-column:1 / -1;">
+                <label for="singleAvatarInput">头像（可选）</label>
+                <input id="singleAvatarInput" type="file" accept="image/*" />
+              </div>
+            </div>
+            <div class="actions">
+              <button type="submit" id="savePlayerBtn">保存选手</button>
+              <button type="button" class="secondary hidden" id="cancelEditBtn">取消编辑</button>
+            </div>
+          </form>
+          <div id="editorMessage" class="message hidden"></div>
+        </section>
+
+        <section class="card">
+          <h2>赛事信息</h2>
+          <div class="field">
+            <label for="eventNameInput">赛事名称</label>
+            <input id="eventNameInput" placeholder="例如：SEU 第四届舞萌校赛" />
+          </div>
+          <div class="actions">
+            <button id="saveEventNameBtn">保存名称</button>
+          </div>
+          <p class="muted small" id="saveStatus" style="margin:12px 0 0;">等待载入数据……</p>
+        </section>
+
+        <section class="card">
+          <h2>当前场次</h2>
+          <div id="activeMatchCard" class="muted">尚未选择当前场次。</div>
+          <div class="actions">
+            <a class="button hidden" id="openBpBtn" href="index.html?portal=referee">为当前场次创建 BP 房间</a>
+            <button class="secondary hidden" id="clearActiveMatchBtn">取消当前场次</button>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+
+  <script src="tournament-store.js"></script>
+  <script src="tournament-core.js"></script>
+  <script src="tournament.js"></script>
+</body>
+</html>

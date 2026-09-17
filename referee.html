@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>裁判工作台 - Music BP Tool</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <script src="referee-auth.js" data-require-auth="true"></script>
+  <link rel="stylesheet" href="tournament.css" />
+  <style>
+    .portal-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
+    .portal-card { display: flex; min-height: 230px; flex-direction: column; }
+    .portal-card .portal-number { color: #ffd166; font-size: 13px; font-weight: 800; letter-spacing: .08em; }
+    .portal-card h2 { margin: 10px 0; }
+    .portal-card p { flex: 1; }
+    .portal-card .button { width: 100%; text-align: center; }
+    .backup-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .backup-actions button { width: 100%; }
+    .backup-message { margin-top: 10px; }
+    .portal-note { margin-top: 18px; }
+    @media (max-width: 1180px) { .portal-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 700px) {
+      .portal-grid { grid-template-columns: 1fr; }
+      .backup-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <h1>裁判工作台</h1>
+        <p>比赛管理、曲库维护和 BP 房间创建统一从这里进入。</p>
+      </div>
+      <div class="top-actions">
+        <a class="button secondary" href="player.html">打开选手入口</a>
+      </div>
+    </header>
+
+    <section class="portal-grid">
+      <article class="card portal-card">
+        <div class="portal-number">01 · ROOM</div>
+        <h2>创建 BP 房间</h2>
+        <p class="muted">选择组别和两名参赛选手，随机分配 A/B，创建本场 BP 房间并担任房主裁判。</p>
+        <a class="button" href="index.html?portal=referee">进入房间控制</a>
+      </article>
+
+      <article class="card portal-card">
+        <div class="portal-number">02 · TOURNAMENT</div>
+        <h2>赛事控制台</h2>
+        <p class="muted">导入选手与头像、生成单败淘汰赛程、选择当前场次并确认胜负与晋级结果。</p>
+        <a class="button" href="tournament.html">进入赛事控制台</a>
+      </article>
+
+      <article class="card portal-card">
+        <div class="portal-number">03 · SONGS</div>
+        <h2>曲库管理</h2>
+        <p class="muted">同步 Diving-Fish 曲库，维护谱面类型、组别、自选池、随机池和本地封面。</p>
+        <a class="button" href="songs.html">进入曲库管理</a>
+      </article>
+
+      <article class="card portal-card">
+        <div class="portal-number">04 · DATA</div>
+        <h2>数据迁移</h2>
+        <p class="muted">完整备份选手、头像、曲库、封面、赛程与比赛结果。</p>
+        <div class="backup-actions">
+          <button type="button" id="exportBackupBtn">导出完整备份</button>
+          <button type="button" class="secondary" id="importBackupBtn">导入完整备份</button>
+        </div>
+        <input class="hidden" id="importBackupInput" type="file" accept=".json,application/json" />
+        <div class="message hidden backup-message" id="backupMessage" role="status" aria-live="polite"></div>
+      </article>
+    </section>
+
+    <section class="card portal-note">
+      <h2>现场使用提示</h2>
+      <p class="muted">裁判使用本工作台；选手与观众只使用选手入口。两端进入同一房间后，仍由现有点对点连接同步 BP 状态。</p>
+    </section>
+  </main>
+  <script src="tournament-store.js"></script>
+  <script src="referee-backup.js"></script>
+</body>
+</html>
