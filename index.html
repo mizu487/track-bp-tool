@@ -1653,17 +1653,17 @@
           );
 
           if (currentBans.length >= 2) {
-            let oldest = currentBans[0];
+            let latest = currentBans[0];
             for (const item of currentBans) {
-              if ((item.markOrder || Infinity) < (oldest.markOrder || Infinity)) {
-                oldest = item;
+              if ((item.markOrder || -Infinity) > (latest.markOrder || -Infinity)) {
+                latest = item;
               }
             }
 
-            oldest.status = "available";
-            oldest.stageMarked = null;
-            oldest.ownerRole = null;
-            oldest.markOrder = null;
+            latest.status = "available";
+            latest.stageMarked = null;
+            latest.ownerRole = null;
+            latest.markOrder = null;
           }
 
           song.status = "banned";
